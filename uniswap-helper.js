@@ -91,10 +91,14 @@ const ERC20_ALLOWANCE_ABI = [
 ];
 
 // Token database (can expand)
+// Addresses are for Sepolia testnet
 const TOKEN_DB = {
   'ETH': { address: SEPOLIA_CONFIG.weth, decimals: 18, symbol: 'WETH' },
   'WETH': { address: SEPOLIA_CONFIG.weth, decimals: 18, symbol: 'WETH' },
   'USDC': { address: SEPOLIA_CONFIG.usdc, decimals: 6, symbol: 'USDC' },
+  // Common tokens on Sepolia (if they exist, add their addresses)
+  // 'USDT': { address: '0x...', decimals: 6, symbol: 'USDT' },
+  // 'DAI': { address: '0x...', decimals: 18, symbol: 'DAI' },
 };
 
 /**
