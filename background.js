@@ -267,12 +267,13 @@ Respond with ONLY valid JSON (no markdown, no code blocks):
   "details": "<additional context>"
 }
 
-Focus on:
-- What tokens were transferred (if any)
-- Which protocols were used
-- Whether contracts were verified
-- Gas costs and efficiency
-- Any suspicious patterns`;
+IMPORTANT GUIDELINES:
+- Only flag actual problems (unusual patterns, unverified + suspicious, etc)
+- Do NOT flag verified contracts as risks
+- Do NOT flag standard operations as risks
+- Do NOT list "temporary loss of functionality" for wrapped tokens
+- Focus on: actual exploits, honeypots, unverified suspicious behavior
+- Leave risks EMPTY [] if contract is verified or operation is normal`;
 
       userMessage = `Analyze this transaction:\n${JSON.stringify(pageInfo, null, 2)}`;
     } else if (type === 'address') {
@@ -285,11 +286,12 @@ Respond with ONLY valid JSON (no markdown, no code blocks):
   "details": "<useful information>"
 }
 
-Focus on:
-- Is this a wallet, contract, or token?
-- Activity level and patterns
-- Whether it's verified or trusted
-- Any red flags`;
+IMPORTANT GUIDELINES:
+- Do NOT flag verified contracts as risks
+- Only flag actual issues: unverified + unusual activity, honeypots, exploits
+- Verified tokens and major protocols are safe
+- Leave risks EMPTY [] for verified addresses
+- Focus on: actual malicious patterns, not on being unverified by default`;
 
       userMessage = `Analyze this address:\n${JSON.stringify(pageInfo, null, 2)}`;
     } else if (type === 'token') {
@@ -302,11 +304,12 @@ Respond with ONLY valid JSON (no markdown, no code blocks):
   "details": "<useful information>"
 }
 
-Focus on:
-- Token type (ERC-20, etc)
-- Total supply and holder count
-- Whether it's verified
-- Any red flags or concerns`;
+IMPORTANT GUIDELINES:
+- Do NOT flag verified tokens as risks
+- Major tokens (USDC, USDT, WETH, DAI, etc) are safe
+- Only flag actual issues: honeypots, unverified + suspicious, exploit patterns
+- Leave risks EMPTY [] for verified, well-known tokens
+- Focus on: actual scams/honeypots, not just being a new token`;
 
       userMessage = `Analyze this token:\n${JSON.stringify(pageInfo, null, 2)}`;
     }
