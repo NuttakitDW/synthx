@@ -262,16 +262,43 @@ function injectOverlay(pageData) {
     overlay.remove();
   });
 
+  // Create restore button (hidden until minimized)
+  const restoreBtn = document.createElement('button');
+  restoreBtn.id = 'synthx-restore-btn';
+  restoreBtn.style.cssText = `
+    position: fixed;
+    bottom: 30px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    transition: all 0.2s;
+  `;
+  restoreBtn.innerHTML = '🧠';
+  restoreBtn.title = 'Show SynthX';
+  document.body.appendChild(restoreBtn);
+
   document.getElementById('synthx-minimize').addEventListener('click', () => {
-    const isMinimized = overlay.style.width === '0px';
-    if (isMinimized) {
-      overlay.style.width = '420px';
-      overlay.style.opacity = '1';
-    } else {
-      overlay.style.width = '0px';
-      overlay.style.opacity = '0';
-      overlay.style.transition = 'all 0.3s ease';
-    }
+    overlay.style.width = '0px';
+    overlay.style.opacity = '0';
+    overlay.style.transition = 'all 0.3s ease';
+    restoreBtn.style.display = 'flex';
+  });
+
+  restoreBtn.addEventListener('click', () => {
+    overlay.style.width = '420px';
+    overlay.style.opacity = '1';
+    restoreBtn.style.display = 'none';
   });
 
   document.getElementById('synthx-scan-btn').addEventListener('click', () => {
