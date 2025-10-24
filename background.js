@@ -185,10 +185,33 @@ class SimplifiedClaudeClient {
   }
 
   async analyzeWalletTrading(walletData) {
-    const systemPrompt = `Return ONLY JSON:
-{"win_rate":"N/A","total_trades":0,"biggest_loss":"Unknown","most_profitable_pair":"Unknown","risk_patterns":[],"recommendation":"Monitor"}`;
+    const systemPrompt = `You are a blockchain analyst. Analyze this wallet activity and return ONLY a valid JSON object:
+{
+  "win_rate": "N/A",
+  "total_trades": <number>,
+  "biggest_loss": "<amount or Unknown>",
+  "most_profitable_pair": "<pair or Unknown>",
+  "risk_patterns": ["<pattern>"],
+  "recommendation": "<brief advice>"
+}`;
 
-    const userMessage = `Wallet ${walletData.address}: ${walletData.total_transactions} txns, ${walletData.total_transfers} transfers`;
+    // Build a concise summary of wallet activity
+    const recentActivity = walletData.transactions.length > 0
+      ? `Last txs: ${walletData.transactions.map(t => t.method || 'Unknown').join(', ')}`
+      : 'No recent transactions';
+
+    const recentTransfers = walletData.transfers.length > 0
+      ? `Recent transfers: ${walletData.transfers.map(t => t.token || 'Unknown').join(', ')}`
+      : 'No token transfers';
+
+    const userMessage = `Analyze wallet activity:
+Address: ${walletData.address}
+Total Transactions: ${walletData.total_transactions}
+Total Token Transfers: ${walletData.total_transfers}
+${recentActivity}
+${recentTransfers}
+
+Provide brief analysis and recommendations based on activity level and patterns.`;
 
     return this._chat(userMessage, systemPrompt);
   }
