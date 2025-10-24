@@ -5,17 +5,12 @@
  */
 
 // DOM Elements
-const tokenInput = document.getElementById('tokenInput');
-const analyzeTokenBtn = document.getElementById('analyzeTokenBtn');
+const addressInput = document.getElementById('addressInput');
+const analyzeAddressBtn = document.getElementById('analyzeAddressBtn');
 const tokenResult = document.getElementById('tokenResult');
 const tokenLoading = document.getElementById('tokenLoading');
 const tokenError = document.getElementById('tokenError');
-
-const walletInput = document.getElementById('walletInput');
-const analyzeWalletBtn = document.getElementById('analyzeWalletBtn');
-const walletResult = document.getElementById('walletResult');
-const walletLoading = document.getElementById('walletLoading');
-const walletError = document.getElementById('walletError');
+const onchainData = document.getElementById('onchainData');
 
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsModal = document.getElementById('settingsModal');
@@ -40,132 +35,60 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check extension status
   checkExtensionStatus();
 
-  // Setup tab navigation
-  setupTabs();
-
   // Event listeners
-  analyzeTokenBtn.addEventListener('click', handleAnalyzeToken);
-  analyzeWalletBtn.addEventListener('click', handleAnalyzeWallet);
+  analyzeAddressBtn.addEventListener('click', handleAnalyzeAddress);
 
   settingsBtn.addEventListener('click', openSettings);
   closeSettingsBtn.addEventListener('click', closeSettings);
   saveSettingsBtn.addEventListener('click', saveSettings);
 
   // Allow Enter key to submit
-  tokenInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleAnalyzeToken();
-  });
-
-  walletInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleAnalyzeWallet();
+  addressInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleAnalyzeAddress();
   });
 });
 
 /**
- * Setup tab navigation
+ * Handle unified address scanning (token or wallet)
  */
-function setupTabs() {
-  const tabBtns = document.querySelectorAll('.tab-btn');
-  const tabContents = document.querySelectorAll('.tab-content');
-
-  tabBtns.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const tabId = btn.dataset.tab;
-
-      // Remove active class from all buttons and contents
-      tabBtns.forEach((b) => b.classList.remove('active'));
-      tabContents.forEach((c) => c.classList.remove('active'));
-
-      // Add active class to clicked button and corresponding content
-      btn.classList.add('active');
-      document.getElementById(tabId).classList.add('active');
-
-      console.log(`[UI] Switched to tab: ${tabId}`);
-    });
-  });
-}
-
-/**
- * Handle token analysis
- */
-async function handleAnalyzeToken() {
-  const address = tokenInput.value.trim();
+async function handleAnalyzeAddress() {
+  const address = addressInput.value.trim();
 
   if (!address) {
-    showTokenError('Please enter a token address');
+    showTokenError('Please enter an address');
     return;
   }
 
   // Reset UI
   hideTokenResult();
   hideTokenError();
+  onchainData.style.display = 'none';
 
   // Show loading
   tokenLoading.style.display = 'block';
-  analyzeTokenBtn.disabled = true;
+  analyzeAddressBtn.disabled = true;
 
   try {
-    console.log('[UI] Analyzing token:', address);
+    console.log('[UI] Scanning address:', address);
 
     // Send message to background.js
     const response = await chrome.runtime.sendMessage({
-      action: 'analyzeToken',
-      data: { tokenAddress: address },
+      action: 'analyzeAddress',
+      data: { address: address },
     });
 
     if (response.success) {
       displayTokenResult(response.data.analysis);
+      displayOnChainData(response.data.onchain);
     } else {
       showTokenError(response.error || 'Analysis failed');
     }
   } catch (error) {
     console.error('[UI] Error:', error);
-    showTokenError(error.message || 'Unable to analyze token. Check if extension is properly configured.');
+    showTokenError(error.message || 'Unable to scan address. Check if extension is properly configured.');
   } finally {
     tokenLoading.style.display = 'none';
-    analyzeTokenBtn.disabled = false;
-  }
-}
-
-/**
- * Handle wallet analysis
- */
-async function handleAnalyzeWallet() {
-  const address = walletInput.value.trim();
-
-  if (!address) {
-    showWalletError('Please enter a wallet address');
-    return;
-  }
-
-  // Reset UI
-  hideWalletResult();
-  hideWalletError();
-
-  // Show loading
-  walletLoading.style.display = 'block';
-  analyzeWalletBtn.disabled = true;
-
-  try {
-    console.log('[UI] Analyzing wallet:', address);
-
-    // Send message to background.js
-    const response = await chrome.runtime.sendMessage({
-      action: 'analyzeWallet',
-      data: { walletAddress: address },
-    });
-
-    if (response.success) {
-      displayWalletResult(response.data.analysis);
-    } else {
-      showWalletError(response.error || 'Analysis failed');
-    }
-  } catch (error) {
-    console.error('[UI] Error:', error);
-    showWalletError(error.message || 'Unable to analyze wallet. Check configuration.');
-  } finally {
-    walletLoading.style.display = 'none';
-    analyzeWalletBtn.disabled = false;
+    analyzeAddressBtn.disabled = false;
   }
 }
 
@@ -204,24 +127,17 @@ function displayTokenResult(analysis) {
 }
 
 /**
- * Display wallet analysis result
+ * Display on-chain data from Blockscout
  */
-function displayWalletResult(analysis) {
-  const {
-    win_rate,
-    total_trades,
-    biggest_loss,
-    most_profitable_pair,
-    recommendation,
-  } = analysis;
+function displayOnChainData(data) {
+  if (!data) return;
 
-  document.getElementById('winRate').textContent = win_rate || '-';
-  document.getElementById('totalTrades').textContent = total_trades || '-';
-  document.getElementById('biggestLoss').textContent = biggest_loss || '-';
-  document.getElementById('profitablePair').textContent = most_profitable_pair || '-';
-  document.getElementById('walletRecommendation').textContent = recommendation || '-';
+  document.getElementById('addressType').textContent = data.type || '-';
+  document.getElementById('addressBalance').textContent = data.balance || '-';
+  document.getElementById('txCount').textContent = data.txCount || '-';
+  document.getElementById('verified').textContent = data.verified ? '✅ Yes' : '❌ No';
 
-  walletResult.style.display = 'block';
+  onchainData.style.display = 'block';
 }
 
 /**
@@ -240,21 +156,6 @@ function hideTokenResult() {
   tokenResult.style.display = 'none';
 }
 
-/**
- * Show wallet error
- */
-function showWalletError(message) {
-  walletError.textContent = message;
-  walletError.style.display = 'block';
-}
-
-function hideWalletError() {
-  walletError.style.display = 'none';
-}
-
-function hideWalletResult() {
-  walletResult.style.display = 'none';
-}
 
 /**
  * Check extension status

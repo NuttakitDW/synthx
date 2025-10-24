@@ -46,17 +46,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // Handle different actions
   switch (request.action) {
-    case 'analyzeToken':
-      handleAnalyzeToken(request.data)
+    case 'analyzeAddress':
+      handleAnalyzeAddress(request.data)
         .then((result) => sendResponse({ success: true, data: result }))
         .catch((error) => sendResponse({ success: false, error: error.message }));
       return true; // Keep channel open for async response
-
-    case 'analyzeWallet':
-      handleAnalyzeWallet(request.data)
-        .then((result) => sendResponse({ success: true, data: result }))
-        .catch((error) => sendResponse({ success: false, error: error.message }));
-      return true;
 
     case 'setApiKey':
       handleSetApiKey(request.apiKey)
@@ -74,73 +68,35 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 /**
- * Handle token analysis request
+ * Handle unified address scanning
  */
-async function handleAnalyzeToken(data) {
-  const { tokenAddress } = data;
+async function handleAnalyzeAddress(data) {
+  const { address } = data;
 
-  if (!tokenAddress) {
-    throw new Error('Token address required');
+  if (!address) {
+    throw new Error('Address required');
   }
 
-  console.log(`[Background] Analyzing token: ${tokenAddress}`);
+  console.log(`[Background] Scanning address: ${address}`);
 
-  // Fetch token data from Blockscout
-  const tokenData = await blockscoutClient.getAddressInfo(tokenAddress);
+  // Fetch address info from Blockscout
+  const addressInfo = await blockscoutClient.getAddressInfo(address);
 
-  // Analyze with Claude
-  const analysis = await claudeClient.analyzeTokenSafety(tokenData);
+  // Analyze for safety (works for both tokens and contracts)
+  const analysis = await claudeClient.analyzeTokenSafety(addressInfo);
 
-  return {
-    address: tokenAddress,
-    analysis,
-    timestamp: new Date().toISOString(),
-  };
-}
-
-/**
- * Handle wallet analysis request
- */
-async function handleAnalyzeWallet(data) {
-  const { walletAddress, days = 90 } = data;
-
-  if (!walletAddress) {
-    throw new Error('Wallet address required');
-  }
-
-  console.log(`[Background] Analyzing wallet: ${walletAddress}`);
-
-  // Fetch wallet data
-  const txns = await blockscoutClient.getTransactionsByAddress(walletAddress, { limit: 100 });
-  const transfers = await blockscoutClient.getTokenTransfersByAddress(walletAddress, { limit: 100 });
-
-  // Summarize data to reduce token usage
-  const walletData = {
-    address: walletAddress,
-    total_transactions: txns?.items?.length || 0,
-    total_transfers: transfers?.items?.length || 0,
-    // Only send last 5 transactions (not 20) to reduce token usage
-    transactions: txns?.items?.slice(0, 5).map((tx) => ({
-      hash: tx.hash,
-      method: tx.method,
-      timestamp: tx.timestamp,
-      status: tx.status,
-    })) || [],
-    // Only send last 5 transfers
-    transfers: transfers?.items?.slice(0, 5).map((t) => ({
-      from: t.from?.hash,
-      to: t.to?.hash,
-      token: t.token?.symbol,
-      timestamp: t.timestamp,
-    })) || [],
+  // Extract on-chain data to display
+  const onchainData = {
+    type: addressInfo.type === 'contract' ? (addressInfo.token ? '📦 Token Contract' : '⚙️ Smart Contract') : '👤 Wallet',
+    balance: addressInfo.coin_balance ? `${(addressInfo.coin_balance / 1e18).toFixed(4)} ETH` : '0 ETH',
+    txCount: addressInfo.transactions_count || '0',
+    verified: addressInfo.verified || false,
   };
 
-  // Analyze with Claude
-  const analysis = await claudeClient.analyzeWalletTrading(walletData);
-
   return {
-    address: walletAddress,
+    address,
     analysis,
+    onchain: onchainData,
     timestamp: new Date().toISOString(),
   };
 }

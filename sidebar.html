@@ -21,27 +21,21 @@
         <span class="status-text" id="statusText">Checking...</span>
       </div>
 
-      <!-- Tab Navigation -->
-      <div class="tab-nav">
-        <button class="tab-btn active" data-tab="tokenTab">🔍 Tokens</button>
-        <button class="tab-btn" data-tab="walletTab">💼 Wallets</button>
-      </div>
-
       <!-- Main Content -->
       <main class="main-content">
-        <!-- Token Safety Tab -->
-        <section class="tab-content active" id="tokenTab">
-          <h2 class="tab-title">🔍 Token Safety Score</h2>
+        <!-- Address Scanner -->
+        <section class="tab-content active" id="scannerTab">
+          <h2 class="tab-title">🔍 Address Scanner</h2>
 
           <div class="input-group">
-            <label for="tokenInput">Token Address</label>
+            <label for="addressInput">Enter Address</label>
             <input
               type="text"
-              id="tokenInput"
-              placeholder="0x... or token name"
+              id="addressInput"
+              placeholder="0x... token or wallet"
               class="input-field"
             />
-            <button id="analyzeTokenBtn" class="btn btn-primary">Analyze</button>
+            <button id="analyzeAddressBtn" class="btn btn-primary">Scan</button>
           </div>
 
           <div class="result" id="tokenResult" style="display: none">
@@ -63,49 +57,29 @@
           </div>
 
           <div class="error" id="tokenError" style="display: none"></div>
-        </section>
 
-        <!-- Wallet Analyzer Tab -->
-        <section class="tab-content" id="walletTab">
-          <h2 class="tab-title">💼 Wallet Analyzer</h2>
-
-          <div class="input-group">
-            <label for="walletInput">Wallet Address</label>
-            <input
-              type="text"
-              id="walletInput"
-              placeholder="0x... or connected wallet"
-              class="input-field"
-            />
-            <button id="analyzeWalletBtn" class="btn btn-primary">Analyze</button>
+          <!-- On-Chain Data Section -->
+          <div class="onchain-data" id="onchainData" style="display: none">
+            <h3 class="data-title">📊 On-Chain Data</h3>
+            <div class="data-grid">
+              <div class="data-item">
+                <label>Type</label>
+                <span id="addressType">-</span>
+              </div>
+              <div class="data-item">
+                <label>Balance</label>
+                <span id="addressBalance">-</span>
+              </div>
+              <div class="data-item">
+                <label>Transactions</label>
+                <span id="txCount">-</span>
+              </div>
+              <div class="data-item">
+                <label>Verified</label>
+                <span id="verified">-</span>
+              </div>
+            </div>
           </div>
-
-          <div class="result" id="walletResult" style="display: none">
-            <div class="metric">
-              <label>Win Rate</label>
-              <span id="winRate">-</span>
-            </div>
-            <div class="metric">
-              <label>Total Trades</label>
-              <span id="totalTrades">-</span>
-            </div>
-            <div class="metric">
-              <label>Most Profitable Pair</label>
-              <span id="profitablePair">-</span>
-            </div>
-            <div class="metric">
-              <label>Biggest Loss</label>
-              <span id="biggestLoss">-</span>
-            </div>
-            <div class="recommendation" id="walletRecommendation"></div>
-          </div>
-
-          <div class="loading" id="walletLoading" style="display: none">
-            <div class="spinner"></div>
-            <p>Analyzing wallet...</p>
-          </div>
-
-          <div class="error" id="walletError" style="display: none"></div>
         </section>
 
         <!-- Settings Modal -->
