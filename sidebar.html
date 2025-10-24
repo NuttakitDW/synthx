@@ -21,6 +21,12 @@
         <span class="status-text" id="statusText">Checking...</span>
       </div>
 
+      <!-- Tab Navigation -->
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="scannerTab">🔍 Scan</button>
+        <button class="tab-btn" data-tab="tradeTab">💱 Trade</button>
+      </div>
+
       <!-- Main Content -->
       <main class="main-content">
         <!-- Address Scanner -->
@@ -57,6 +63,86 @@
           </div>
 
           <div class="error" id="tokenError" style="display: none"></div>
+        </section>
+
+        <!-- Trade/Swap Tab -->
+        <section class="tab-content" id="tradeTab">
+          <h2 class="tab-title">💱 Trade Tokens</h2>
+
+          <div class="input-group">
+            <label for="fromTokenInput">From Token (Address)</label>
+            <input
+              type="text"
+              id="fromTokenInput"
+              placeholder="0x... or WETH"
+              class="input-field"
+            />
+          </div>
+
+          <div class="input-group">
+            <label for="amountInput">Amount</label>
+            <input
+              type="number"
+              id="amountInput"
+              placeholder="0.01"
+              class="input-field"
+              step="0.0001"
+            />
+          </div>
+
+          <div class="input-group">
+            <label for="toTokenInput">To Token (Address)</label>
+            <input
+              type="text"
+              id="toTokenInput"
+              placeholder="0x... or USDC"
+              class="input-field"
+            />
+          </div>
+
+          <div class="input-group">
+            <label for="platformSelect">DEX Platform</label>
+            <select id="platformSelect" class="input-field">
+              <option value="uniswap">Uniswap V3</option>
+            </select>
+          </div>
+
+          <button id="getQuoteBtn" class="btn btn-primary">Get Quote</button>
+
+          <div class="swap-preview" id="swapPreview" style="display: none">
+            <div class="preview-row">
+              <span class="preview-label">Expected Output:</span>
+              <span class="preview-value" id="expectedOutput">-</span>
+            </div>
+            <div class="preview-row">
+              <span class="preview-label">Min Received (0.5% slippage):</span>
+              <span class="preview-value" id="minReceived">-</span>
+            </div>
+            <div class="preview-row">
+              <span class="preview-label">Gas Cost:</span>
+              <span class="preview-value" id="gasCost">-</span>
+            </div>
+            <div class="preview-row">
+              <span class="preview-label">Price Impact:</span>
+              <span class="preview-value" id="priceImpact">-</span>
+            </div>
+          </div>
+
+          <button id="executeSwapBtn" class="btn btn-primary" style="display: none; margin-top: 15px">Execute Swap</button>
+
+          <div class="loading" id="swapLoading" style="display: none">
+            <div class="spinner"></div>
+            <p id="loadingMessage">Fetching quote...</p>
+          </div>
+
+          <div class="swap-status" id="swapStatus" style="display: none">
+            <div class="status-message" id="statusMessage"></div>
+            <div id="txLink" style="display: none">
+              <a id="txHash" href="" target="_blank" style="color: #3b82f6; text-decoration: underline;">View on Sepolia Etherscan</a>
+            </div>
+          </div>
+
+          <div class="error" id="swapError" style="display: none"></div>
         </section>
 
         <!-- Settings Modal -->

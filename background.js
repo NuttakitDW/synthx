@@ -52,6 +52,18 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .catch((error) => sendResponse({ success: false, error: error.message }));
       return true; // Keep channel open for async response
 
+    case 'getSwapQuote':
+      handleGetSwapQuote(request.data)
+        .then((result) => sendResponse({ success: true, data: result }))
+        .catch((error) => sendResponse({ success: false, error: error.message }));
+      return true;
+
+    case 'executeSwap':
+      handleExecuteSwap(request.data)
+        .then((result) => sendResponse({ success: true, data: result }))
+        .catch((error) => sendResponse({ success: false, error: error.message }));
+      return true;
+
     case 'setApiKey':
       handleSetApiKey(request.apiKey)
         .then((result) => sendResponse({ success: true, data: result }))
@@ -98,6 +110,52 @@ async function handleAnalyzeAddress(data) {
     analysis,
     onchain: onchainData,
     timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * Handle swap quote request
+ */
+async function handleGetSwapQuote(data) {
+  const { fromToken, amount, toToken, platform } = data;
+
+  console.log(`[Background] Getting swap quote: ${amount} ${fromToken} -> ${toToken}`);
+
+  // For now, return a mock quote
+  // In production, would integrate with Uniswap API or on-chain quoter
+  const quote = {
+    expectedOutput: (parseFloat(amount) * 1.5).toFixed(4), // Mock: 1.5x conversion
+    minReceived: (parseFloat(amount) * 1.49).toFixed(4), // With 0.5% slippage
+    gasCost: '~0.01 ETH',
+    priceImpact: '0.1%',
+    platform: platform,
+    fromToken,
+    toToken,
+    amount,
+  };
+
+  return { quote };
+}
+
+/**
+ * Handle swap execution
+ */
+async function handleExecuteSwap(data) {
+  const { fromToken, toToken, amount, quote } = data;
+
+  console.log(`[Background] Executing swap: ${amount} ${fromToken} -> ${toToken}`);
+
+  // This will be expanded to:
+  // 1. Build Uniswap swap calldata
+  // 2. Send transaction request to MetaMask via content script
+  // 3. Return transaction hash
+
+  // For now, return a mock transaction
+  const mockTxHash = '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+
+  return {
+    txHash: mockTxHash,
+    message: 'Swap submitted to MetaMask',
   };
 }
 

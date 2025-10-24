@@ -22,6 +22,21 @@ const statusBar = document.getElementById('statusBar');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
 
+// Trade/Swap elements
+const fromTokenInput = document.getElementById('fromTokenInput');
+const amountInput = document.getElementById('amountInput');
+const toTokenInput = document.getElementById('toTokenInput');
+const platformSelect = document.getElementById('platformSelect');
+const getQuoteBtn = document.getElementById('getQuoteBtn');
+const executeSwapBtn = document.getElementById('executeSwapBtn');
+const swapPreview = document.getElementById('swapPreview');
+const swapLoading = document.getElementById('swapLoading');
+const swapError = document.getElementById('swapError');
+const swapStatus = document.getElementById('swapStatus');
+
+// Store swap quote data
+let currentQuote = null;
+
 /**
  * Initialize UI on load
  */
@@ -34,8 +49,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check extension status
   checkExtensionStatus();
 
-  // Event listeners
+  // Setup tab switching
+  setupTabs();
+
+  // Scanner events
   analyzeAddressBtn.addEventListener('click', handleAnalyzeAddress);
+
+  // Trade events
+  getQuoteBtn.addEventListener('click', handleGetQuote);
+  executeSwapBtn.addEventListener('click', handleExecuteSwap);
 
   settingsBtn.addEventListener('click', openSettings);
   closeSettingsBtn.addEventListener('click', closeSettings);
@@ -44,6 +66,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Allow Enter key to submit
   addressInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') handleAnalyzeAddress();
+  });
+
+  amountInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleGetQuote();
   });
 });
 
@@ -232,5 +258,175 @@ document.addEventListener('click', (e) => {
     closeSettings();
   }
 });
+
+/**
+ * Tab Navigation
+ */
+function setupTabs() {
+  const tabBtns = document.querySelectorAll('.tab-btn');
+  const tabContents = document.querySelectorAll('.tab-content');
+
+  tabBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tabId = btn.dataset.tab;
+
+      // Remove active class from all buttons and contents
+      tabBtns.forEach((b) => b.classList.remove('active'));
+      tabContents.forEach((content) => content.classList.remove('active'));
+
+      // Add active class to clicked button and corresponding content
+      btn.classList.add('active');
+      const activeContent = document.getElementById(tabId);
+      if (activeContent) {
+        activeContent.classList.add('active');
+      }
+
+      console.log('[UI] Switched to tab:', tabId);
+    });
+  });
+}
+
+/**
+ * Trade/Swap Feature Handlers
+ */
+async function handleGetQuote() {
+  const fromToken = fromTokenInput.value.trim();
+  const amount = amountInput.value.trim();
+  const toToken = toTokenInput.value.trim();
+
+  if (!fromToken || !amount || !toToken) {
+    showSwapError('Please fill in all fields (From Token, Amount, To Token)');
+    return;
+  }
+
+  if (isNaN(amount) || parseFloat(amount) <= 0) {
+    showSwapError('Please enter a valid amount');
+    return;
+  }
+
+  hideSwapError();
+  hideSwapPreview();
+
+  swapLoading.style.display = 'block';
+  document.getElementById('loadingMessage').textContent = 'Fetching quote...';
+  getQuoteBtn.disabled = true;
+
+  try {
+    console.log('[UI] Getting swap quote:', {
+      from: fromToken,
+      amount: amount,
+      to: toToken,
+    });
+
+    // Send message to background.js for quote
+    const response = await chrome.runtime.sendMessage({
+      action: 'getSwapQuote',
+      data: {
+        fromToken: fromToken,
+        amount: amount,
+        toToken: toToken,
+        platform: platformSelect.value,
+      },
+    });
+
+    if (response.success) {
+      currentQuote = response.data.quote;
+      displaySwapPreview(response.data.quote);
+    } else {
+      showSwapError(response.error || 'Failed to get quote');
+    }
+  } catch (error) {
+    console.error('[UI] Error getting quote:', error);
+    showSwapError(error.message || 'Unable to fetch quote. Check your inputs and try again.');
+  } finally {
+    swapLoading.style.display = 'none';
+    getQuoteBtn.disabled = false;
+  }
+}
+
+function displaySwapPreview(quote) {
+  document.getElementById('expectedOutput').textContent = quote.expectedOutput || '-';
+  document.getElementById('minReceived').textContent = quote.minReceived || '-';
+  document.getElementById('gasCost').textContent = quote.gasCost || '~0.01 ETH';
+  document.getElementById('priceImpact').textContent = quote.priceImpact || '0.1%';
+
+  swapPreview.style.display = 'block';
+  executeSwapBtn.style.display = 'block';
+}
+
+function hideSwapPreview() {
+  swapPreview.style.display = 'none';
+  executeSwapBtn.style.display = 'none';
+}
+
+async function handleExecuteSwap() {
+  if (!currentQuote) {
+    showSwapError('No quote available. Please get a quote first.');
+    return;
+  }
+
+  hideSwapError();
+  swapStatus.style.display = 'none';
+
+  swapLoading.style.display = 'block';
+  document.getElementById('loadingMessage').textContent = 'Preparing swap transaction...';
+  executeSwapBtn.disabled = true;
+
+  try {
+    console.log('[UI] Executing swap with quote:', currentQuote);
+
+    // Send message to background.js to execute swap
+    const response = await chrome.runtime.sendMessage({
+      action: 'executeSwap',
+      data: {
+        fromToken: fromTokenInput.value.trim(),
+        toToken: toTokenInput.value.trim(),
+        amount: amountInput.value.trim(),
+        quote: currentQuote,
+      },
+    });
+
+    if (response.success) {
+      showSwapSuccess(response.data);
+      // Clear form
+      fromTokenInput.value = '';
+      amountInput.value = '';
+      toTokenInput.value = '';
+      currentQuote = null;
+      hideSwapPreview();
+    } else {
+      showSwapError(response.error || 'Swap execution failed');
+    }
+  } catch (error) {
+    console.error('[UI] Error executing swap:', error);
+    showSwapError(error.message || 'Unable to execute swap. Check MetaMask and try again.');
+  } finally {
+    swapLoading.style.display = 'none';
+    executeSwapBtn.disabled = false;
+  }
+}
+
+function showSwapSuccess(txData) {
+  swapStatus.style.display = 'block';
+  const statusMessage = document.getElementById('statusMessage');
+  statusMessage.textContent = '✅ Swap submitted! Transaction: ' + (txData.txHash || 'Processing...');
+
+  if (txData.txHash) {
+    const txLink = document.getElementById('txLink');
+    const txHashLink = document.getElementById('txHash');
+    txLink.style.display = 'block';
+    txHashLink.href = `https://sepolia.etherscan.io/tx/${txData.txHash}`;
+    txHashLink.textContent = 'View on Sepolia Etherscan';
+  }
+}
+
+function showSwapError(message) {
+  swapError.textContent = message;
+  swapError.style.display = 'block';
+}
+
+function hideSwapError() {
+  swapError.style.display = 'none';
+}
 
 console.log('[UI] Event listeners attached');
