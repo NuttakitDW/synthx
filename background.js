@@ -255,17 +255,22 @@ class SimplifiedBlockscoutClient {
   }
 
   async getTransactionsByAddress(address, options = {}) {
-    return this._call(`/addresses/${address}/transactions`, options);
+    return this._call(`/addresses/${address}/transactions`, {});
   }
 
   async getTokenTransfersByAddress(address, options = {}) {
-    return this._call(`/addresses/${address}/token-transfers`, options);
+    return this._call(`/addresses/${address}/token-transfers`, {});
   }
 
   async _call(endpoint, params = {}) {
     try {
       const url = new URL(`${this.apiBase}${endpoint}`);
+
+      // Note: Blockscout API doesn't accept 'limit' param
+      // It returns paginated results by default
       Object.entries(params).forEach(([key, value]) => {
+        // Skip 'limit' parameter - not supported by this API version
+        if (key === 'limit') return;
         if (value !== null && value !== undefined) {
           url.searchParams.append(key, value);
         }
@@ -276,7 +281,8 @@ class SimplifiedBlockscoutClient {
 
       const response = await fetch(urlString);
       if (!response.ok) {
-        console.error(`[Blockscout] Error ${response.status} for URL: ${urlString}`);
+        const errorData = await response.json();
+        console.error(`[Blockscout] Error ${response.status}:`, errorData);
         throw new Error(`API error ${response.status}`);
       }
       return await response.json();
