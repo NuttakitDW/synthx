@@ -145,18 +145,45 @@ async function handleExecuteSwap(data) {
 
   console.log(`[Background] Executing swap: ${amount} ${fromToken} -> ${toToken}`);
 
-  // This will be expanded to:
-  // 1. Build Uniswap swap calldata
-  // 2. Send transaction request to MetaMask via content script
-  // 3. Return transaction hash
+  // Step 1: Get the active tab (where user is browsing)
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tabs || tabs.length === 0) {
+    throw new Error('No active tab found. Please open any webpage and try again.');
+  }
 
-  // For now, return a mock transaction
-  const mockTxHash = '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+  const activeTab = tabs[0];
+  console.log(`[Background] Sending swap to tab ${activeTab.id}: ${activeTab.url}`);
 
-  return {
-    txHash: mockTxHash,
-    message: 'Swap submitted to MetaMask',
-  };
+  // Step 2: Send swap execution request to content script
+  try {
+    const response = await chrome.tabs.sendMessage(activeTab.id, {
+      action: 'executeSwapViaMetaMask',
+      data: {
+        fromToken,
+        toToken,
+        amount,
+      },
+    });
+
+    console.log('[Background] Swap response:', response);
+
+    if (response.success) {
+      return response.data;
+    } else {
+      throw new Error(response.error || 'Swap execution failed');
+    }
+  } catch (error) {
+    console.error('[Background] Error executing swap:', error);
+
+    // If content script fails, provide helpful error
+    if (error.message.includes('Could not establish connection')) {
+      throw new Error(
+        'Could not connect to webpage. Please ensure you have an active tab open and try again.'
+      );
+    }
+
+    throw error;
+  }
 }
 
 /**
