@@ -10,7 +10,6 @@ const analyzeAddressBtn = document.getElementById('analyzeAddressBtn');
 const tokenResult = document.getElementById('tokenResult');
 const tokenLoading = document.getElementById('tokenLoading');
 const tokenError = document.getElementById('tokenError');
-const onchainData = document.getElementById('onchainData');
 
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsModal = document.getElementById('settingsModal');
@@ -62,7 +61,6 @@ async function handleAnalyzeAddress() {
   // Reset UI
   hideTokenResult();
   hideTokenError();
-  onchainData.style.display = 'none';
 
   // Show loading
   tokenLoading.style.display = 'block';
@@ -79,7 +77,6 @@ async function handleAnalyzeAddress() {
 
     if (response.success) {
       displayTokenResult(response.data.analysis);
-      displayOnChainData(response.data.onchain);
     } else {
       showTokenError(response.error || 'Analysis failed');
     }
@@ -124,20 +121,6 @@ function displayTokenResult(analysis) {
 
   // Show result
   tokenResult.style.display = 'block';
-}
-
-/**
- * Display on-chain data from Blockscout
- */
-function displayOnChainData(data) {
-  if (!data) return;
-
-  document.getElementById('addressType').textContent = data.type || '-';
-  document.getElementById('addressBalance').textContent = data.balance || '-';
-  document.getElementById('txCount').textContent = data.txCount || '-';
-  document.getElementById('verified').textContent = data.verified ? '✅ Yes' : '❌ No';
-
-  onchainData.style.display = 'block';
 }
 
 /**

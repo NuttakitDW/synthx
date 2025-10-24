@@ -266,51 +266,6 @@ body {
   font-size: 11px;
 }
 
-/* On-Chain Data */
-.onchain-data {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.data-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #cbd5e1;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 12px;
-}
-
-.data-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.data-item {
-  background: rgba(255, 255, 255, 0.03);
-  padding: 8px;
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.data-item label {
-  font-size: 11px;
-  color: #94a3b8;
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-.data-item span {
-  font-size: 13px;
-  color: #60a5fa;
-  font-weight: 600;
-  word-break: break-all;
-}
-
 .recommendation {
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(10, 174, 105, 0.1) 100%);
   border-left: 3px solid #10b981;
