@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SynthX - Web3 Intelligence",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "AI-powered blockchain intelligence and safety analysis for DeFi users",
   "permissions": [
     "storage",
@@ -9,7 +9,10 @@
     "scripting"
   ],
   "host_permissions": [
-    "https://api.anthropic.com/*"
+    "https://api.anthropic.com/*",
+    "https://rpc.sepolia.org/*",
+    "https://eth.blockscout.com/*",
+    "https://sepolia.blockscout.com/*"
   ],
   "action": {
     "default_popup": "sidebar.html",
@@ -27,7 +30,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["injected.js"],
+      "resources": ["injected.js", "uniswap-helper.js"],
       "matches": ["<all_urls>"]
     }
   ]

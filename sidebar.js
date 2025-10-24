@@ -472,6 +472,11 @@ async function handleGetQuote() {
     if (response.success) {
       currentQuote = response.data.quote;
       displaySwapPreview(response.data.quote);
+
+      // Store real quote data if we get it back
+      if (response.data.quote.quoteData) {
+        console.log('[UI] Real quote data:', response.data.quote.quoteData);
+      }
     } else {
       showSwapError(response.error || 'Failed to get quote');
     }
@@ -485,8 +490,15 @@ async function handleGetQuote() {
 }
 
 function displaySwapPreview(quote) {
-  document.getElementById('expectedOutput').textContent = quote.expectedOutput || '-';
-  document.getElementById('minReceived').textContent = quote.minReceived || '-';
+  // Show estimated/loading state if this is a real quote
+  if (quote.isRealQuote) {
+    document.getElementById('expectedOutput').textContent = '🔄 Getting real quote...';
+    document.getElementById('minReceived').textContent = '🔄 Preparing...';
+  } else {
+    document.getElementById('expectedOutput').textContent = quote.expectedOutput || '-';
+    document.getElementById('minReceived').textContent = quote.minReceived || '-';
+  }
+
   document.getElementById('gasCost').textContent = quote.gasCost || '~0.01 ETH';
   document.getElementById('priceImpact').textContent = quote.priceImpact || '0.1%';
 
@@ -497,6 +509,16 @@ function displaySwapPreview(quote) {
 
   swapPreview.style.display = 'block';
   executeSwapBtn.style.display = 'block';
+
+  // If this is a real quote, show note about getting actual data during execution
+  if (quote.isRealQuote) {
+    const noteEl = document.createElement('div');
+    noteEl.style.cssText = 'font-size: 11px; color: #94a3b8; margin-top: 8px; font-style: italic;';
+    noteEl.textContent = '💡 Real Uniswap V3 quote will be fetched when you execute the swap';
+    if (swapPreview && swapPreview.lastElementChild) {
+      swapPreview.appendChild(noteEl);
+    }
+  }
 }
 
 function hideSwapPreview() {
@@ -533,12 +555,24 @@ async function handleExecuteSwap() {
 
     if (response.success) {
       showSwapSuccess(response.data);
-      // Clear form
-      fromTokenInput.value = '';
-      amountInput.value = '';
-      toTokenInput.value = '';
-      currentQuote = null;
-      hideSwapPreview();
+
+      // If we got real quote data, display it
+      if (response.data.quote) {
+        console.log('[UI] Real quote received:', response.data.quote);
+        // Update the preview with real data before clearing
+        document.getElementById('expectedOutput').textContent = response.data.quote.expectedOutput || '-';
+        document.getElementById('minReceived').textContent = response.data.quote.minReceived || '-';
+        document.getElementById('priceImpact').textContent = response.data.quote.priceImpact || '0.1%';
+      }
+
+      // Clear form after a delay so user can see results
+      setTimeout(() => {
+        fromTokenInput.value = '';
+        amountInput.value = '';
+        toTokenInput.value = '';
+        currentQuote = null;
+        hideSwapPreview();
+      }, 3000);
     } else {
       showSwapError(response.error || 'Swap execution failed');
     }

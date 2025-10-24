@@ -120,32 +120,66 @@ async function executeSwap(payload) {
   const walletAddress = await checkWallet();
   console.log('[Injected] Wallet address:', walletAddress);
 
-  // For MVP, return transaction hash that user can verify
-  // Full implementation would:
-  // 1. Build calldata for Uniswap swap
-  // 2. Handle ERC20 approvals
-  // 3. Build and send transaction
+  // Get real quote from Uniswap
+  console.log('[Injected] Getting real quote from Uniswap V3...');
+  const quote = await window.UniswapHelper.getUniswapQuote(fromToken, toToken, amount);
+  console.log('[Injected] Quote received:', quote);
 
-  const mockTxHash = await sendMockSwapTransaction(walletAddress, {
-    fromToken,
-    toToken,
-    amount,
-  });
+  // Build swap transaction
+  const txData = await window.UniswapHelper.buildSwapTransaction(walletAddress, quote);
+  console.log('[Injected] Transaction data built:', txData);
+
+  // Send transaction via MetaMask
+  const txHash = await sendSwapTransaction(walletAddress, txData);
+  console.log('[Injected] Transaction hash:', txHash);
 
   return {
-    txHash: mockTxHash,
+    txHash,
     walletAddress,
+    quote,
   };
 }
 
 /**
- * Mock function for MVP - in production this builds real swap calldata
+ * Send real swap transaction via MetaMask
  */
-async function sendMockSwapTransaction(walletAddress, swapParams) {
-  console.log('[Injected] Sending mock swap transaction');
+async function sendSwapTransaction(walletAddress, txData) {
+  if (!window.ethereum) {
+    throw new Error('MetaMask not detected');
+  }
 
-  // For MVP, simulate transaction
-  return '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('');
+  try {
+    console.log('[Injected] Sending transaction to MetaMask');
+
+    // Request account access
+    const accounts = await window.ethereum.request({
+      method: 'eth_requestAccounts',
+    });
+
+    if (accounts[0] !== walletAddress) {
+      throw new Error('Wallet address mismatch');
+    }
+
+    // Send transaction
+    const txHash = await window.ethereum.request({
+      method: 'eth_sendTransaction',
+      params: [
+        {
+          from: txData.from,
+          to: txData.to,
+          data: txData.data,
+          value: txData.value || '0x0',
+          gas: txData.gasLimit ? '0x' + txData.gasLimit.toString(16) : undefined,
+        },
+      ],
+    });
+
+    console.log('[Injected] Transaction sent, hash:', txHash);
+    return txHash;
+  } catch (error) {
+    console.error('[Injected] Transaction error:', error);
+    throw new Error(`Transaction failed: ${error.message}`);
+  }
 }
 
 /**
