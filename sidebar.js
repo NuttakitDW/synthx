@@ -2,15 +2,17 @@
  * SynthX Sidebar UI Logic
  *
  * Handles user interactions and communicates with background.js
+ * Focus: Blockscout MCP-powered address scanning and analysis
  */
 
-// DOM Elements
+// DOM Elements - Scanner Tab
 const addressInput = document.getElementById('addressInput');
 const analyzeAddressBtn = document.getElementById('analyzeAddressBtn');
 const tokenResult = document.getElementById('tokenResult');
 const tokenLoading = document.getElementById('tokenLoading');
 const tokenError = document.getElementById('tokenError');
 
+// Settings
 const settingsBtn = document.getElementById('settingsBtn');
 const settingsModal = document.getElementById('settingsModal');
 const closeSettingsBtn = document.getElementById('closeSettingsBtn');
@@ -18,29 +20,10 @@ const saveSettingsBtn = document.getElementById('saveSettingsBtn');
 const apiKeyInput = document.getElementById('apiKeyInput');
 const chainSelect = document.getElementById('chainSelect');
 
+// Status
 const statusBar = document.getElementById('statusBar');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
-
-// Trade/Swap elements
-const commandInput = document.getElementById('commandInput');
-const parseCommandBtn = document.getElementById('parseCommandBtn');
-const formSection = document.getElementById('formSection');
-const fromTokenInput = document.getElementById('fromTokenInput');
-const amountInput = document.getElementById('amountInput');
-const toTokenInput = document.getElementById('toTokenInput');
-const platformSelect = document.getElementById('platformSelect');
-const getQuoteBtn = document.getElementById('getQuoteBtn');
-const executeSwapBtn = document.getElementById('executeSwapBtn');
-const swapPreview = document.getElementById('swapPreview');
-const swapLoading = document.getElementById('swapLoading');
-const swapError = document.getElementById('swapError');
-const swapStatus = document.getElementById('swapStatus');
-const aiRecommendations = document.getElementById('aiRecommendations');
-
-// Store swap quote data and history
-let currentQuote = null;
-let tradeHistory = [];
 
 /**
  * Initialize UI on load
@@ -54,20 +37,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // Check extension status
   checkExtensionStatus();
 
-  // Setup tab switching
-  setupTabs();
-
   // Scanner events
   analyzeAddressBtn.addEventListener('click', handleAnalyzeAddress);
 
-  // Trade events
-  parseCommandBtn.addEventListener('click', handleParseCommand);
-  getQuoteBtn.addEventListener('click', handleGetQuote);
-  executeSwapBtn.addEventListener('click', handleExecuteSwap);
-
-  // Load trade history
-  loadTradeHistory();
-
+  // Settings events
   settingsBtn.addEventListener('click', openSettings);
   closeSettingsBtn.addEventListener('click', closeSettings);
   saveSettingsBtn.addEventListener('click', saveSettings);
@@ -76,14 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
   addressInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') handleAnalyzeAddress();
   });
-
-  amountInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') handleGetQuote();
-  });
 });
 
 /**
- * Handle unified address scanning (token or wallet)
+ * Handle address scanning (token or wallet)
  */
 async function handleAnalyzeAddress() {
   const address = addressInput.value.trim();
@@ -125,7 +94,7 @@ async function handleAnalyzeAddress() {
 }
 
 /**
- * Display token analysis result
+ * Display token/address analysis result
  */
 function displayTokenResult(analysis) {
   const { safety_score, verdict, risks, reason, confidence } = analysis;
@@ -180,7 +149,6 @@ function hideTokenError() {
 function hideTokenResult() {
   tokenResult.style.display = 'none';
 }
-
 
 /**
  * Check extension status
@@ -267,367 +235,5 @@ document.addEventListener('click', (e) => {
     closeSettings();
   }
 });
-
-/**
- * Tab Navigation
- */
-function setupTabs() {
-  const tabBtns = document.querySelectorAll('.tab-btn');
-  const tabContents = document.querySelectorAll('.tab-content');
-
-  tabBtns.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const tabId = btn.dataset.tab;
-
-      // Remove active class from all buttons and contents
-      tabBtns.forEach((b) => b.classList.remove('active'));
-      tabContents.forEach((content) => content.classList.remove('active'));
-
-      // Add active class to clicked button and corresponding content
-      btn.classList.add('active');
-      const activeContent = document.getElementById(tabId);
-      if (activeContent) {
-        activeContent.classList.add('active');
-      }
-
-      console.log('[UI] Switched to tab:', tabId);
-    });
-  });
-}
-
-/**
- * AI Command Parser - Parse natural language commands
- */
-async function handleParseCommand() {
-  const command = commandInput.value.trim();
-
-  if (!command) {
-    showSwapError('Please enter a command like "Swap 0.01 ETH for USDC"');
-    return;
-  }
-
-  swapLoading.style.display = 'block';
-  document.getElementById('loadingMessage').textContent = 'Parsing command with AI...';
-  parseCommandBtn.disabled = true;
-
-  try {
-    console.log('[UI] Parsing command:', command);
-
-    // Send to background for Claude parsing
-    const response = await chrome.runtime.sendMessage({
-      action: 'parseTradeCommand',
-      data: { command },
-    });
-
-    if (response.success) {
-      const parsed = response.data.parsed;
-
-      // Fill in the form
-      fromTokenInput.value = parsed.fromToken || '';
-      amountInput.value = parsed.amount || '';
-      toTokenInput.value = parsed.toToken || '';
-
-      // Show the form section
-      formSection.style.display = 'block';
-
-      // Clear input
-      commandInput.value = '';
-
-      // Show success message
-      showSwapSuccess({
-        message: `✅ Parsed! "${parsed.fromToken}" → "${parsed.toToken}" (${parsed.amount})`
-      });
-
-      console.log('[UI] Parsed command:', parsed);
-    } else {
-      showSwapError(response.error || 'Failed to parse command');
-    }
-  } catch (error) {
-    console.error('[UI] Error parsing command:', error);
-    showSwapError('Error: ' + error.message);
-  } finally {
-    swapLoading.style.display = 'none';
-    parseCommandBtn.disabled = false;
-  }
-}
-
-/**
- * Display AI Recommendations
- */
-function displayAIRecommendations(quote) {
-  aiRecommendations.style.display = 'block';
-
-  // Gas Optimization
-  const gasOpt = document.getElementById('gasOptimization');
-  if (quote.gasOptimization) {
-    gasOpt.style.display = 'block';
-    document.getElementById('gasOptText').textContent = quote.gasOptimization;
-  }
-
-  // Risk Warning
-  const riskWarn = document.getElementById('riskWarning');
-  if (quote.riskWarning) {
-    riskWarn.style.display = 'block';
-    document.getElementById('riskWarnText').textContent = quote.riskWarning;
-  }
-
-  // Liquidity Info
-  const liquidity = document.getElementById('liquidityInfo');
-  if (quote.liquidityAnalysis) {
-    liquidity.style.display = 'block';
-    document.getElementById('liquidityText').textContent = quote.liquidityAnalysis;
-  }
-
-  // Timing Advice
-  const timing = document.getElementById('timingAdvice');
-  if (quote.timingAdvice) {
-    timing.style.display = 'block';
-    document.getElementById('timingText').textContent = quote.timingAdvice;
-  }
-}
-
-/**
- * Load trade history from storage
- */
-async function loadTradeHistory() {
-  try {
-    const data = await chrome.storage.local.get('TRADE_HISTORY');
-    if (data.TRADE_HISTORY) {
-      tradeHistory = JSON.parse(data.TRADE_HISTORY);
-      console.log('[UI] Loaded trade history:', tradeHistory.length, 'trades');
-    }
-  } catch (error) {
-    console.error('[UI] Error loading trade history:', error);
-  }
-}
-
-/**
- * Save trade to history
- */
-async function saveTradeToHistory(trade) {
-  try {
-    tradeHistory.push({
-      ...trade,
-      timestamp: new Date().toISOString(),
-    });
-
-    // Keep only last 50 trades
-    if (tradeHistory.length > 50) {
-      tradeHistory = tradeHistory.slice(-50);
-    }
-
-    await chrome.storage.local.set({
-      TRADE_HISTORY: JSON.stringify(tradeHistory),
-    });
-
-    console.log('[UI] Saved trade to history');
-  } catch (error) {
-    console.error('[UI] Error saving trade history:', error);
-  }
-}
-
-/**
- * Trade/Swap Feature Handlers
- */
-async function handleGetQuote() {
-  const fromToken = fromTokenInput.value.trim();
-  const amount = amountInput.value.trim();
-  const toToken = toTokenInput.value.trim();
-
-  if (!fromToken || !amount || !toToken) {
-    showSwapError('Please fill in all fields (From Token, Amount, To Token)');
-    return;
-  }
-
-  if (isNaN(amount) || parseFloat(amount) <= 0) {
-    showSwapError('Please enter a valid amount');
-    return;
-  }
-
-  hideSwapError();
-  hideSwapPreview();
-
-  swapLoading.style.display = 'block';
-  document.getElementById('loadingMessage').textContent = 'Fetching quote...';
-  getQuoteBtn.disabled = true;
-
-  try {
-    console.log('[UI] Getting swap quote:', {
-      from: fromToken,
-      amount: amount,
-      to: toToken,
-    });
-
-    // Send message to background.js for quote
-    const response = await chrome.runtime.sendMessage({
-      action: 'getSwapQuote',
-      data: {
-        fromToken: fromToken,
-        amount: amount,
-        toToken: toToken,
-        platform: platformSelect.value,
-      },
-    });
-
-    if (response.success) {
-      currentQuote = response.data.quote;
-      displaySwapPreview(response.data.quote);
-
-      // Store real quote data if we get it back
-      if (response.data.quote.quoteData) {
-        console.log('[UI] Real quote data:', response.data.quote.quoteData);
-      }
-    } else {
-      showSwapError(response.error || 'Failed to get quote');
-    }
-  } catch (error) {
-    console.error('[UI] Error getting quote:', error);
-    showSwapError(error.message || 'Unable to fetch quote. Check your inputs and try again.');
-  } finally {
-    swapLoading.style.display = 'none';
-    getQuoteBtn.disabled = false;
-  }
-}
-
-function displaySwapPreview(quote) {
-  // Show estimated/loading state if this is a real quote
-  if (quote.isRealQuote) {
-    document.getElementById('expectedOutput').textContent = '🔄 Getting real quote...';
-    document.getElementById('minReceived').textContent = '🔄 Preparing...';
-  } else {
-    document.getElementById('expectedOutput').textContent = quote.expectedOutput || '-';
-    document.getElementById('minReceived').textContent = quote.minReceived || '-';
-  }
-
-  document.getElementById('gasCost').textContent = quote.gasCost || '~0.01 ETH';
-  document.getElementById('priceImpact').textContent = quote.priceImpact || '0.1%';
-
-  // Display AI recommendations if available
-  if (quote.gasOptimization || quote.riskWarning || quote.liquidityAnalysis || quote.timingAdvice) {
-    displayAIRecommendations(quote);
-  }
-
-  swapPreview.style.display = 'block';
-  executeSwapBtn.style.display = 'block';
-
-  // If this is a real quote, show note about getting actual data during execution
-  if (quote.isRealQuote) {
-    const noteEl = document.createElement('div');
-    noteEl.style.cssText = 'font-size: 11px; color: #94a3b8; margin-top: 8px; font-style: italic;';
-    noteEl.textContent = '💡 Real Uniswap V3 quote will be fetched when you execute the swap';
-    if (swapPreview && swapPreview.lastElementChild) {
-      swapPreview.appendChild(noteEl);
-    }
-  }
-}
-
-function hideSwapPreview() {
-  swapPreview.style.display = 'none';
-  executeSwapBtn.style.display = 'none';
-}
-
-async function handleExecuteSwap() {
-  console.log('[UI] Execute button clicked');
-  console.log('[UI] currentQuote:', currentQuote);
-  console.log('[UI] fromToken:', fromTokenInput.value.trim());
-  console.log('[UI] toToken:', toTokenInput.value.trim());
-  console.log('[UI] amount:', amountInput.value.trim());
-
-  if (!currentQuote) {
-    console.error('[UI] No quote available');
-    showSwapError('No quote available. Please get a quote first.');
-    return;
-  }
-
-  hideSwapError();
-  swapStatus.style.display = 'none';
-
-  swapLoading.style.display = 'block';
-  document.getElementById('loadingMessage').textContent = 'Preparing swap transaction...';
-  executeSwapBtn.disabled = true;
-
-  try {
-    console.log('[UI] Executing swap with quote:', currentQuote);
-
-    const swapData = {
-      fromToken: fromTokenInput.value.trim(),
-      toToken: toTokenInput.value.trim(),
-      amount: amountInput.value.trim(),
-      quote: currentQuote,
-    };
-
-    console.log('[UI] Sending swap request:', swapData);
-
-    // Send message to background.js to execute swap
-    const response = await chrome.runtime.sendMessage({
-      action: 'executeSwap',
-      data: swapData,
-    });
-
-    console.log('[UI] Received response from background:', response);
-
-    if (response.success) {
-      showSwapSuccess(response.data);
-
-      // If we got real quote data, display it
-      if (response.data.quote) {
-        console.log('[UI] Real quote received:', response.data.quote);
-        // Update the preview with real data before clearing
-        document.getElementById('expectedOutput').textContent = response.data.quote.expectedOutput || '-';
-        document.getElementById('minReceived').textContent = response.data.quote.minReceived || '-';
-        document.getElementById('priceImpact').textContent = response.data.quote.priceImpact || '0.1%';
-      }
-
-      // Clear form after a delay so user can see results
-      setTimeout(() => {
-        fromTokenInput.value = '';
-        amountInput.value = '';
-        toTokenInput.value = '';
-        currentQuote = null;
-        hideSwapPreview();
-      }, 3000);
-    } else {
-      console.error('[UI] Swap failed:', response.error);
-      showSwapError(response.error || 'Swap execution failed');
-    }
-  } catch (error) {
-    console.error('[UI] Error executing swap:', error);
-    console.error('[UI] Error message:', error.message);
-    console.error('[UI] Error stack:', error.stack);
-    showSwapError(error.message || 'Unable to execute swap. Check MetaMask and try again.');
-  } finally {
-    swapLoading.style.display = 'none';
-    executeSwapBtn.disabled = false;
-  }
-}
-
-function showSwapSuccess(txData) {
-  swapStatus.style.display = 'block';
-  const statusMessage = document.getElementById('statusMessage');
-
-  let message = '✅ Swap submitted! Transaction: ' + (txData.txHash || 'Processing...');
-  if (txData.approvalNeeded) {
-    message += '\n(Token approval was required and processed)';
-  }
-
-  statusMessage.textContent = message;
-
-  if (txData.txHash) {
-    const txLink = document.getElementById('txLink');
-    const txHashLink = document.getElementById('txHash');
-    txLink.style.display = 'block';
-    txHashLink.href = `https://sepolia.etherscan.io/tx/${txData.txHash}`;
-    txHashLink.textContent = 'View on Sepolia Etherscan';
-  }
-}
-
-function showSwapError(message) {
-  swapError.textContent = message;
-  swapError.style.display = 'block';
-}
-
-function hideSwapError() {
-  swapError.style.display = 'none';
-}
 
 console.log('[UI] Event listeners attached');

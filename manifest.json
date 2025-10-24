@@ -1,16 +1,13 @@
 {
   "manifest_version": 3,
   "name": "SynthX - Web3 Intelligence",
-  "version": "0.2.0",
-  "description": "AI-powered blockchain intelligence and safety analysis for DeFi users",
+  "version": "1.0.0",
+  "description": "AI-powered blockchain intelligence powered by Blockscout MCP",
   "permissions": [
-    "storage",
-    "activeTab",
-    "scripting"
+    "storage"
   ],
   "host_permissions": [
     "https://api.anthropic.com/*",
-    "https://rpc.sepolia.org/*",
     "https://eth.blockscout.com/*",
     "https://sepolia.blockscout.com/*"
   ],
@@ -20,19 +17,5 @@
   },
   "background": {
     "service_worker": "background.js"
-  },
-  "content_scripts": [
-    {
-      "matches": ["https://*/*", "http://*/*"],
-      "js": ["content.js"],
-      "run_at": "document_start",
-      "all_frames": false
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["injected.js", "uniswap-helper.js"],
-      "matches": ["<all_urls>"]
-    }
-  ]
+  }
 }

@@ -2,17 +2,12 @@
  * SynthX Background Service Worker
  *
  * - Handles messages from sidebar UI
- * - Orchestrates Claude API + Blockscout queries
- * - Routes requests to appropriate analyzers
+ * - Orchestrates Blockscout + Claude API
+ * - Focuses on address scanning and analysis
  */
-
-// NOTE: In a real extension, these would be imported as modules
-// For now, we'll load them dynamically or include their code inline
 
 let claudeClient;
 let blockscoutClient;
-let tokenSafetyAnalyzer;
-let walletAnalyzer;
 
 /**
  * Initialize clients on extension startup
@@ -30,8 +25,7 @@ async function initializeClients() {
     console.warn('[Background] Claude API key not found. Please configure in settings.');
   }
 
-  // Initialize clients (would normally import these modules)
-  // For MVP, we'll create lightweight versions here
+  // Initialize clients
   claudeClient = new SimplifiedClaudeClient(CLAUDE_API_KEY || '');
   blockscoutClient = new SimplifiedBlockscoutClient(BLOCKSCOUT_CHAIN_ID || '1');
 
@@ -51,24 +45,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .then((result) => sendResponse({ success: true, data: result }))
         .catch((error) => sendResponse({ success: false, error: error.message }));
       return true; // Keep channel open for async response
-
-    case 'parseTradeCommand':
-      handleParseTradeCommand(request.data)
-        .then((result) => sendResponse({ success: true, data: result }))
-        .catch((error) => sendResponse({ success: false, error: error.message }));
-      return true;
-
-    case 'getSwapQuote':
-      handleGetSwapQuote(request.data)
-        .then((result) => sendResponse({ success: true, data: result }))
-        .catch((error) => sendResponse({ success: false, error: error.message }));
-      return true;
-
-    case 'executeSwap':
-      handleExecuteSwap(request.data)
-        .then((result) => sendResponse({ success: true, data: result }))
-        .catch((error) => sendResponse({ success: false, error: error.message }));
-      return true;
 
     case 'setApiKey':
       handleSetApiKey(request.apiKey)
@@ -120,217 +96,6 @@ async function handleAnalyzeAddress(data) {
 }
 
 /**
- * Parse natural language trade commands using Claude AI
- */
-async function handleParseTradeCommand(data) {
-  const { command } = data;
-
-  console.log(`[Background] Parsing command: ${command}`);
-
-  const systemPrompt = `You are a DeFi trade command parser. Extract swap parameters from user input and return ONLY valid JSON:
-{
-  "fromToken": "<token name or address>",
-  "toToken": "<token name or address>",
-  "amount": "<number>"
-}
-
-Examples:
-  "Swap 0.01 ETH for USDC" → {"fromToken": "ETH", "toToken": "USDC", "amount": "0.01"}
-  "Trade 5 USDC to WETH" → {"fromToken": "USDC", "toToken": "WETH", "amount": "5"}
-  "Exchange 100 USDC for 0.05 ETH" → {"fromToken": "USDC", "toToken": "ETH", "amount": "100"}
-
-Return ONLY the JSON object, no other text.`;
-
-  try {
-    const response = await claudeClient._chat(command, systemPrompt);
-    console.log('[Background] Parsed command:', response);
-
-    return { parsed: response };
-  } catch (error) {
-    console.error('[Background] Error parsing command:', error);
-    throw new Error('Failed to parse command: ' + error.message);
-  }
-}
-
-/**
- * Handle swap quote request with AI recommendations
- */
-async function handleGetSwapQuote(data) {
-  const { fromToken, amount, toToken, platform } = data;
-
-  console.log(`[Background] Getting swap quote: ${amount} ${fromToken} -> ${toToken}`);
-
-  // Get real quote from injected.js via content script
-  let quote = null;
-  try {
-    // This will be fetched from injected.js during execution
-    // For now, create a placeholder that indicates real quote pending
-    quote = {
-      expectedOutput: 'Loading...',
-      minReceived: 'Loading...',
-      gasCost: 'Estimating...',
-      priceImpact: 'Calculating...',
-      platform: platform,
-      fromToken,
-      toToken,
-      amount,
-      isRealQuote: true, // Flag indicating this will be real
-    };
-
-    // Try to get gas estimate
-    try {
-      const gasEstimate = await getGasEstimate();
-      quote.gasCost = gasEstimate;
-    } catch (error) {
-      console.warn('[Background] Gas estimation failed:', error);
-      quote.gasCost = '~0.01 ETH';
-    }
-  } catch (error) {
-    console.error('[Background] Error getting quote:', error);
-    // Fallback to mock quote for demo
-    quote = {
-      expectedOutput: (parseFloat(amount) * 1.5).toFixed(4),
-      minReceived: (parseFloat(amount) * 1.49).toFixed(4),
-      gasCost: '~0.01 ETH',
-      priceImpact: '0.1%',
-      platform: platform,
-      fromToken,
-      toToken,
-      amount,
-      isRealQuote: false,
-    };
-  }
-
-  // Get AI recommendations
-  try {
-    const recommendations = await generateSwapRecommendations(fromToken, toToken, amount, quote);
-    Object.assign(quote, recommendations);
-  } catch (error) {
-    console.error('[Background] Error generating recommendations:', error);
-    // Continue with quote even if recommendations fail
-  }
-
-  return { quote };
-}
-
-/**
- * Estimate gas cost from Sepolia network
- */
-async function getGasEstimate() {
-  try {
-    // In a real scenario, we'd fetch from RPC
-    // For now, return a reasonable estimate
-    return '~0.005 ETH (Sepolia)';
-  } catch (error) {
-    throw error;
-  }
-}
-
-/**
- * Generate AI recommendations for a swap
- */
-async function generateSwapRecommendations(fromToken, toToken, amount, quote) {
-  const systemPrompt = `You are a DeFi trade advisor. Analyze a swap and provide brief recommendations in JSON format:
-{
-  "gasOptimization": "<brief tip or null>",
-  "riskWarning": "<warning or null>",
-  "liquidityAnalysis": "<analysis or null>",
-  "timingAdvice": "<timing tip or null>"
-}
-
-All fields should be null or strings of max 100 characters.`;
-
-  const userMessage = `Analyze this swap:
-From: ${fromToken}
-To: ${toToken}
-Amount: ${amount}
-Expected Output: ${quote.expectedOutput}
-Gas Cost: ${quote.gasCost}
-Price Impact: ${quote.priceImpact}
-
-Provide recommendations.`;
-
-  try {
-    const recommendations = await claudeClient._chat(userMessage, systemPrompt);
-    return recommendations;
-  } catch (error) {
-    console.error('[Background] Error in recommendations:', error);
-    return {};
-  }
-}
-
-/**
- * Handle swap execution
- */
-async function handleExecuteSwap(data) {
-  console.log('[Background] handleExecuteSwap called with data:', data);
-
-  const { fromToken, toToken, amount, quote } = data;
-
-  console.log(`[Background] Executing swap: ${amount} ${fromToken} -> ${toToken}`);
-
-  // Step 1: Get the active tab (where user is browsing)
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tabs || tabs.length === 0) {
-    throw new Error('No active tab found. Please open any webpage and try again.');
-  }
-
-  const activeTab = tabs[0];
-  console.log(`[Background] Sending swap to tab ${activeTab.id}: ${activeTab.url}`);
-
-  // Step 2: Send swap execution request to content script
-  try {
-    // First, try to inject content script if not already there
-    try {
-      console.log('[Background] Attempting to inject content script...');
-      await chrome.scripting.executeScript({
-        target: { tabId: activeTab.id },
-        files: ['content.js'],
-      });
-      console.log('[Background] Content script injected successfully');
-    } catch (injectError) {
-      console.warn('[Background] Content script injection warning:', injectError.message);
-      // Continue anyway - script might already be there
-    }
-
-    // Give content script a moment to load
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const response = await chrome.tabs.sendMessage(activeTab.id, {
-      action: 'executeSwapViaMetaMask',
-      data: {
-        fromToken,
-        toToken,
-        amount,
-      },
-    });
-
-    console.log('[Background] Swap response:', response);
-
-    if (response.success) {
-      return response.data;
-    } else {
-      throw new Error(response.error || 'Swap execution failed');
-    }
-  } catch (error) {
-    console.error('[Background] Error executing swap:', error);
-
-    // Provide helpful error messages
-    if (error.message.includes('Could not establish connection')) {
-      throw new Error(
-        'Content script not found on this page. Try: 1) Refresh the page, 2) Ensure MetaMask is installed, 3) Try another website like uniswap.org'
-      );
-    }
-
-    if (error.message.includes('Extension context invalidated')) {
-      throw new Error('Extension was updated. Please refresh the page and try again.');
-    }
-
-    throw error;
-  }
-}
-
-/**
  * Handle API key setup
  */
 async function handleSetApiKey(apiKey) {
@@ -370,38 +135,6 @@ IMPORTANT:
 - Leave risks array EMPTY if address is safe`;
 
     const userMessage = `Analyze token: ${JSON.stringify(tokenData)}`;
-
-    return this._chat(userMessage, systemPrompt);
-  }
-
-  async analyzeWalletTrading(walletData) {
-    const systemPrompt = `You are a blockchain analyst. Analyze this wallet activity and return ONLY a valid JSON object:
-{
-  "win_rate": "N/A",
-  "total_trades": <number>,
-  "biggest_loss": "<amount or Unknown>",
-  "most_profitable_pair": "<pair or Unknown>",
-  "risk_patterns": ["<pattern>"],
-  "recommendation": "<brief advice>"
-}`;
-
-    // Build a concise summary of wallet activity
-    const recentActivity = walletData.transactions.length > 0
-      ? `Last txs: ${walletData.transactions.map(t => t.method || 'Unknown').join(', ')}`
-      : 'No recent transactions';
-
-    const recentTransfers = walletData.transfers.length > 0
-      ? `Recent transfers: ${walletData.transfers.map(t => t.token || 'Unknown').join(', ')}`
-      : 'No token transfers';
-
-    const userMessage = `Analyze wallet activity:
-Address: ${walletData.address}
-Total Transactions: ${walletData.total_transactions}
-Total Token Transfers: ${walletData.total_transfers}
-${recentActivity}
-${recentTransfers}
-
-Provide brief analysis and recommendations based on activity level and patterns.`;
 
     return this._chat(userMessage, systemPrompt);
   }
@@ -473,22 +206,11 @@ class SimplifiedBlockscoutClient {
     return this._call(`/addresses/${address}`);
   }
 
-  async getTransactionsByAddress(address, options = {}) {
-    return this._call(`/addresses/${address}/transactions`, {});
-  }
-
-  async getTokenTransfersByAddress(address, options = {}) {
-    return this._call(`/addresses/${address}/token-transfers`, {});
-  }
-
   async _call(endpoint, params = {}) {
     try {
       const url = new URL(`${this.apiBase}${endpoint}`);
 
-      // Note: Blockscout API doesn't accept 'limit' param
-      // It returns paginated results by default
       Object.entries(params).forEach(([key, value]) => {
-        // Skip 'limit' parameter - not supported by this API version
         if (key === 'limit') return;
         if (value !== null && value !== undefined) {
           url.searchParams.append(key, value);
