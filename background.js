@@ -263,6 +263,8 @@ Provide recommendations.`;
  * Handle swap execution
  */
 async function handleExecuteSwap(data) {
+  console.log('[Background] handleExecuteSwap called with data:', data);
+
   const { fromToken, toToken, amount, quote } = data;
 
   console.log(`[Background] Executing swap: ${amount} ${fromToken} -> ${toToken}`);

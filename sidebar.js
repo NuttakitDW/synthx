@@ -527,7 +527,14 @@ function hideSwapPreview() {
 }
 
 async function handleExecuteSwap() {
+  console.log('[UI] Execute button clicked');
+  console.log('[UI] currentQuote:', currentQuote);
+  console.log('[UI] fromToken:', fromTokenInput.value.trim());
+  console.log('[UI] toToken:', toTokenInput.value.trim());
+  console.log('[UI] amount:', amountInput.value.trim());
+
   if (!currentQuote) {
+    console.error('[UI] No quote available');
     showSwapError('No quote available. Please get a quote first.');
     return;
   }
@@ -542,16 +549,22 @@ async function handleExecuteSwap() {
   try {
     console.log('[UI] Executing swap with quote:', currentQuote);
 
+    const swapData = {
+      fromToken: fromTokenInput.value.trim(),
+      toToken: toTokenInput.value.trim(),
+      amount: amountInput.value.trim(),
+      quote: currentQuote,
+    };
+
+    console.log('[UI] Sending swap request:', swapData);
+
     // Send message to background.js to execute swap
     const response = await chrome.runtime.sendMessage({
       action: 'executeSwap',
-      data: {
-        fromToken: fromTokenInput.value.trim(),
-        toToken: toTokenInput.value.trim(),
-        amount: amountInput.value.trim(),
-        quote: currentQuote,
-      },
+      data: swapData,
     });
+
+    console.log('[UI] Received response from background:', response);
 
     if (response.success) {
       showSwapSuccess(response.data);
@@ -574,10 +587,13 @@ async function handleExecuteSwap() {
         hideSwapPreview();
       }, 3000);
     } else {
+      console.error('[UI] Swap failed:', response.error);
       showSwapError(response.error || 'Swap execution failed');
     }
   } catch (error) {
     console.error('[UI] Error executing swap:', error);
+    console.error('[UI] Error message:', error.message);
+    console.error('[UI] Error stack:', error.stack);
     showSwapError(error.message || 'Unable to execute swap. Check MetaMask and try again.');
   } finally {
     swapLoading.style.display = 'none';
