@@ -11,20 +11,25 @@ SynthX is a Chrome extension that provides real-time insights about tokens and w
 
 ## Features (MVP v0.1)
 
-### 🔍 Token Safety Score
-Analyze any Ethereum token for scam/honeypot risks:
+### 🔍 Address Scanner
+Analyze any Ethereum address (token, wallet, or contract) for safety:
 - Contract verification status
-- Holder concentration
-- Transaction activity
 - AI-powered risk assessment
-- **Result:** 🟢 SAFE / 🟡 RISKY / 🔴 SCAM
+- Detailed risk explanations
+- **Result:** 🟢 SAFE / 🟡 RISKY / 🔴 SCAM with confidence levels
 
-### 💼 Wallet Analyzer
-Understand your trading performance:
-- Win/loss ratio
-- Most profitable token pairs
-- Trading patterns and risks
-- Personalized recommendations
+### 💱 Trade (Uniswap V3 on Sepolia Testnet)
+Execute token swaps directly from the extension:
+- Get real-time swap quotes
+- Preview transaction details (gas cost, slippage, price impact)
+- Execute swaps via MetaMask
+- View transactions on Sepolia Etherscan
+- **Testnet only** - Safe for testing
+
+**Note:** Trade feature is in MVP stage with mock quotes for testing. Real swap execution requires:
+- MetaMask installed and configured for Sepolia
+- Test ETH from a faucet
+- Active browser tab during swap execution
 
 ## Installation & Setup
 
@@ -64,24 +69,37 @@ cp .env.example .env
 
 ## How to Use
 
-### Token Safety Score
+### Address Scanner
 
 1. Click SynthX icon
-2. Paste any Ethereum token address
-3. Click **Analyze**
+2. In the **🔍 Scan** tab, paste any Ethereum address
+3. Click **Scan**
 4. View risk assessment: Safety score, verdict, specific risks
 
-**Example tokens to test:**
+**Example addresses to test:**
 - USDC: `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48` (should be SAFE)
-- WETH: `0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2` (should be SAFE)
+- Vitalik: `0xd8dA6BF26964aF9D7eEd9e03E53415D37AA96045` (should be SAFE)
 
-### Wallet Analyzer
+### Trade Tokens (Sepolia Testnet)
 
 1. Click SynthX icon
-2. Select **Wallet Analyzer** tab
-3. Paste your wallet address
-4. Click **Analyze**
-5. View trading statistics and recommendations
+2. In the **💱 Trade** tab, enter:
+   - From Token: Token address to swap from
+   - Amount: How much to swap
+   - To Token: Token address to swap to
+   - Platform: Uniswap V3 (default)
+
+3. Click **Get Quote** to see estimated output
+4. Review swap preview (gas cost, slippage, price impact)
+5. Click **Execute Swap**
+6. MetaMask popup appears → Click **Confirm**
+7. View transaction on Sepolia Etherscan
+
+**Test tokens on Sepolia:**
+- WETH: `0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14`
+- USDC: `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`
+
+For detailed testing instructions, see **TRADE_TESTING.md**
 
 ## Testing Checklist
 
@@ -101,25 +119,39 @@ cp .env.example .env
 - [ ] Click Save Settings
 - [ ] Settings saved and retrieved correctly
 
-### ✅ Phase 3: Token Safety Analysis
+### ✅ Phase 3: Address Scanner
 
-- [ ] Enter valid token address
-- [ ] Click Analyze
+- [ ] Click "🔍 Scan" tab
+- [ ] Enter USDC token address
+- [ ] Click Scan
 - [ ] Loading spinner appears (2-3 seconds)
-- [ ] Result displays with verdict, score, risks
-- [ ] Different results for safe vs scam tokens
+- [ ] Result displays with verdict (should be SAFE), score, risks
+- [ ] Confidence level displayed
 
-### ✅ Phase 4: Wallet Analysis
+### ✅ Phase 4: Trade Feature (MVP)
 
-- [ ] Enter valid wallet address
-- [ ] Click Analyze
-- [ ] Result displays win rate, trades, recommendations
-- [ ] Console shows no critical errors
+- [ ] Click "💱 Trade" tab
+- [ ] Tab navigation works smoothly
+- [ ] Fill in From Token, Amount, To Token
+- [ ] Click "Get Quote"
+- [ ] Loading spinner appears
+- [ ] Swap preview displays with mock values
+- [ ] "Execute Swap" button becomes enabled
 
-### ✅ Phase 5: Error Handling
+### ✅ Phase 5: MetaMask Integration
+
+- [ ] Have MetaMask installed
+- [ ] MetaMask set to Sepolia testnet
+- [ ] Have test ETH available
+- [ ] Try to execute swap with active browser tab open
+- [ ] MetaMask popup should appear
+- [ ] Can see transaction details
+
+### ✅ Phase 6: Error Handling
 
 - [ ] Invalid address → shows error message
 - [ ] No API key → shows helpful error
+- [ ] No active tab → shows helpful error
 - [ ] Network error → graceful handling
 
 ## Testing with Real Data
