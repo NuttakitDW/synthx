@@ -236,7 +236,11 @@ class SimplifiedClaudeClient {
 class SimplifiedBlockscoutClient {
   constructor(chainId = '1') {
     this.chainId = chainId;
-    this.apiBase = 'https://blockscout.com/api/v2';
+    // Use eth.blockscout.com for Ethereum Mainnet (more reliable)
+    // For Sepolia: https://sepolia.blockscout.com/api/v2
+    this.apiBase = chainId === '11155111'
+      ? 'https://sepolia.blockscout.com/api/v2'
+      : 'https://eth.blockscout.com/api/v2';
   }
 
   async getAddressInfo(address) {
