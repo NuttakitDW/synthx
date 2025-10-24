@@ -115,6 +115,13 @@ function displayTokenResult(analysis) {
       li.textContent = risk;
       risksList.appendChild(li);
     });
+  } else {
+    // Show clear message when no risks detected
+    const li = document.createElement('li');
+    li.style.color = '#10b981';
+    li.style.listStyleType = 'none';
+    li.textContent = '✅ No red flags detected';
+    risksList.appendChild(li);
   }
 
   document.getElementById('confidence').textContent = `Confidence: ${confidence}`;
