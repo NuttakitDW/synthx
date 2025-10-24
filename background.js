@@ -264,8 +264,14 @@ class SimplifiedBlockscoutClient {
         }
       });
 
-      const response = await fetch(url.toString());
-      if (!response.ok) throw new Error(`API error ${response.status}`);
+      const urlString = url.toString();
+      console.log(`[Blockscout] Calling: ${urlString}`);
+
+      const response = await fetch(urlString);
+      if (!response.ok) {
+        console.error(`[Blockscout] Error ${response.status} for URL: ${urlString}`);
+        throw new Error(`API error ${response.status}`);
+      }
       return await response.json();
     } catch (error) {
       console.error('[Blockscout] Error:', error);
