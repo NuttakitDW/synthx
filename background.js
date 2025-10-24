@@ -130,10 +130,15 @@ class SimplifiedClaudeClient {
 {
   "safety_score": <0-100>,
   "verdict": "<SCAM|RISKY|SAFE>",
-  "risks": ["<risk>"],
+  "risks": ["<risk1>", "<risk2>"],
   "reason": "<explanation>",
   "confidence": "<HIGH|MEDIUM|LOW>"
-}`;
+}
+
+IMPORTANT:
+- If no risks found, return empty array: "risks": []
+- Never include text like "none identified" or "no risks" in the risks array
+- Leave risks array EMPTY if address is safe`;
 
     const userMessage = `Analyze token: ${JSON.stringify(tokenData)}`;
 
