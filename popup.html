@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SynthX Settings</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="popup-container">
+      <!-- Header -->
+      <header class="popup-header">
+        <h1>🧠 SynthX</h1>
+        <p>On-Chain AI Copilot</p>
+      </header>
+
+      <!-- Status -->
+      <div class="status-bar">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-text" id="statusText">Checking...</span>
+      </div>
+
+      <!-- Info -->
+      <div class="info-section">
+        <p>SynthX automatically explains transactions, addresses, and tokens on Blockscout when you visit them.</p>
+        <p style="font-size: 12px; color: #666;">Open any Blockscout page to see explanations in the sidebar.</p>
+      </div>
+
+      <!-- Settings -->
+      <div class="settings-section">
+        <h2>API Key</h2>
+        <div class="form-group">
+          <input
+            type="password"
+            id="apiKeyInput"
+            placeholder="sk-ant-..."
+            class="input-field"
+          />
+          <small>Your API key is stored locally and never shared</small>
+        </div>
+        <button id="saveBtn" class="btn btn-primary">Save API Key</button>
+        <div id="saveStatus" class="status-message" style="display: none;"></div>
+      </div>
+
+      <!-- Footer -->
+      <footer class="popup-footer">
+        <p style="margin: 0; font-size: 11px; color: #999;">SynthX v1.0.0</p>
+        <a href="https://github.com/nuttakit/synthx" target="_blank" style="font-size: 11px; color: #0066cc;">GitHub</a>
+      </footer>
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

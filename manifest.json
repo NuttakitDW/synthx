@@ -1,19 +1,30 @@
 {
   "manifest_version": 3,
-  "name": "SynthX - Contract Scanner",
+  "name": "SynthX - On-Chain AI Copilot",
   "version": "1.0.0",
-  "description": "Analyze Ethereum contracts for safety using AI. Get instant verdict: SAFE / RISKY / SCAM.",
+  "description": "Transform Blockscout into an AI-powered investigation tool. Get natural-language explanations of transactions, addresses, and contracts.",
   "permissions": [
-    "storage"
+    "storage",
+    "webRequest"
   ],
   "host_permissions": [
     "https://api.anthropic.com/*",
-    "https://eth.blockscout.com/*",
-    "https://sepolia.blockscout.com/*"
+    "https://*.blockscout.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.blockscout.com/address/*",
+        "https://*.blockscout.com/tx/*",
+        "https://*.blockscout.com/token/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
   ],
   "action": {
-    "default_popup": "sidebar.html",
-    "default_title": "SynthX - Contract Scanner"
+    "default_popup": "popup.html",
+    "default_title": "SynthX - AI Copilot"
   },
   "background": {
     "service_worker": "background.js"

@@ -1,50 +1,48 @@
 /**
  * SynthX Background Service Worker
  *
- * - Handles messages from sidebar UI
- * - Orchestrates Blockscout + Claude API
- * - Focuses on address scanning and analysis
+ * - Orchestrates Claude API for on-chain explanation
+ * - Fetches data from Blockscout API
+ * - Generates human-readable summaries of transactions, addresses, and tokens
  */
 
 let claudeClient;
-let blockscoutClient;
 
 /**
- * Initialize clients on extension startup
+ * Initialize on extension startup
  */
 async function initializeClients() {
   console.log('[Background] Initializing SynthX...');
 
-  // Get API key from storage (user will set this during setup)
-  const { CLAUDE_API_KEY, BLOCKSCOUT_CHAIN_ID } = await chrome.storage.local.get([
-    'CLAUDE_API_KEY',
-    'BLOCKSCOUT_CHAIN_ID',
-  ]);
+  const { CLAUDE_API_KEY } = await chrome.storage.local.get(['CLAUDE_API_KEY']);
 
   if (!CLAUDE_API_KEY) {
     console.warn('[Background] Claude API key not found. Please configure in settings.');
   }
 
-  // Initialize clients
-  claudeClient = new SimplifiedClaudeClient(CLAUDE_API_KEY || '');
-  blockscoutClient = new SimplifiedBlockscoutClient(BLOCKSCOUT_CHAIN_ID || '1');
+  claudeClient = new ClaudeClient(CLAUDE_API_KEY || '');
 
-  console.log('[Background] Clients initialized');
+  console.log('[Background] SynthX initialized');
 }
 
 /**
- * Listen for messages from sidebar
+ * Listen for messages from content script
  */
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('[Background] Received message:', request.action);
 
-  // Handle different actions
   switch (request.action) {
-    case 'analyzeAddress':
-      handleAnalyzeAddress(request.data)
-        .then((result) => sendResponse({ success: true, data: result }))
-        .catch((error) => sendResponse({ success: false, error: error.message }));
-      return true; // Keep channel open for async response
+    case 'analyzePage':
+      handleAnalyzePage(request.pageData)
+        .then((result) => sendResponse(result))
+        .catch((error) => sendResponse({ error: error.message }));
+      return true;
+
+    case 'askFollowUp':
+      handleFollowUp(request.pageData, request.question)
+        .then((result) => sendResponse(result))
+        .catch((error) => sendResponse({ error: error.message }));
+      return true;
 
     case 'setApiKey':
       handleSetApiKey(request.apiKey)
@@ -52,49 +50,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .catch((error) => sendResponse({ success: false, error: error.message }));
       return true;
 
-
     case 'ping':
       sendResponse({ success: true, message: 'SynthX is running' });
       return true;
 
     default:
-      sendResponse({ success: false, error: 'Unknown action' });
+      sendResponse({ error: 'Unknown action' });
   }
 });
-
-/**
- * Handle unified address scanning
- */
-async function handleAnalyzeAddress(data) {
-  const { address } = data;
-
-  if (!address) {
-    throw new Error('Address required');
-  }
-
-  console.log(`[Background] Scanning address: ${address}`);
-
-  // Fetch address info from Blockscout
-  const addressInfo = await blockscoutClient.getAddressInfo(address);
-
-  // Analyze for safety (works for both tokens and contracts)
-  const analysis = await claudeClient.analyzeTokenSafety(addressInfo);
-
-  // Extract on-chain data to display
-  const onchainData = {
-    type: addressInfo.type === 'contract' ? (addressInfo.token ? '📦 Token Contract' : '⚙️ Smart Contract') : '👤 Wallet',
-    balance: addressInfo.coin_balance ? `${(addressInfo.coin_balance / 1e18).toFixed(4)} ETH` : '0 ETH',
-    txCount: addressInfo.transactions_count || '0',
-    verified: addressInfo.verified || false,
-  };
-
-  return {
-    address,
-    analysis,
-    onchain: onchainData,
-    timestamp: new Date().toISOString(),
-  };
-}
 
 /**
  * Handle API key setup
@@ -105,61 +68,250 @@ async function handleSetApiKey(apiKey) {
   }
 
   await chrome.storage.local.set({ CLAUDE_API_KEY: apiKey });
-  claudeClient = new SimplifiedClaudeClient(apiKey);
+  claudeClient = new ClaudeClient(apiKey);
 
   return { message: 'API key saved successfully' };
 }
 
+/**
+ * Analyze page based on type (tx, address, token)
+ */
+async function handleAnalyzePage(pageData) {
+  const { type, value, url } = pageData;
+  console.log(`[Background] Analyzing ${type}: ${value}`);
 
+  try {
+    let pageInfo;
+
+    if (type === 'transaction') {
+      pageInfo = await fetchTransactionData(value, url);
+    } else if (type === 'address') {
+      pageInfo = await fetchAddressData(value, url);
+    } else if (type === 'token') {
+      pageInfo = await fetchTokenData(value, url);
+    } else {
+      throw new Error('Unknown page type');
+    }
+
+    // Send to Claude for explanation
+    const analysis = await claudeClient.explainOnChainData(type, pageInfo);
+
+    return { analysis };
+  } catch (error) {
+    console.error('[Background] Error:', error);
+    throw error;
+  }
+}
 
 /**
- * Simplified Claude Client (for MVP)
- * In production, would use full ClaudeClient module
+ * Handle follow-up questions
  */
-class SimplifiedClaudeClient {
+async function handleFollowUp(pageData, question) {
+  const { type, value, url } = pageData;
+  console.log(`[Background] Follow-up question for ${type}: ${question}`);
+
+  try {
+    let pageInfo;
+
+    if (type === 'transaction') {
+      pageInfo = await fetchTransactionData(value, url);
+    } else if (type === 'address') {
+      pageInfo = await fetchAddressData(value, url);
+    } else if (type === 'token') {
+      pageInfo = await fetchTokenData(value, url);
+    } else {
+      throw new Error('Unknown page type');
+    }
+
+    // Ask Claude with context
+    const analysis = await claudeClient.answerQuestion(type, pageInfo, question);
+
+    return { analysis };
+  } catch (error) {
+    console.error('[Background] Error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch transaction data from Blockscout
+ */
+async function fetchTransactionData(txHash, blockscoutUrl) {
+  // Extract chain from URL (eth.blockscout.com, sepolia.blockscout.com, etc)
+  const chainMatch = blockscoutUrl.match(/https:\/\/([^.]+)\.blockscout\.com/);
+  const chain = chainMatch ? chainMatch[1] : 'eth';
+
+  const apiBase = chain === 'sepolia'
+    ? 'https://sepolia.blockscout.com/api/v2'
+    : `https://${chain}.blockscout.com/api/v2`;
+
+  try {
+    const response = await fetch(`${apiBase}/transactions/${txHash}`);
+    if (!response.ok) throw new Error(`Blockscout API error: ${response.status}`);
+
+    const txData = await response.json();
+
+    console.log('[Background] Fetched transaction data:', txData);
+
+    return {
+      hash: txHash,
+      from: txData.from?.hash,
+      to: txData.to?.hash,
+      value: txData.value,
+      gasUsed: txData.gas_used,
+      gasPrice: txData.gas_price,
+      status: txData.status,
+      method: txData.method,
+      timestamp: txData.timestamp,
+      decoded_input: txData.decoded_input,
+      token_transfers: txData.token_transfers,
+      confirmations: txData.confirmation_duration,
+    };
+  } catch (error) {
+    console.error('[Background] Error fetching transaction:', error);
+    throw new Error(`Failed to fetch transaction: ${error.message}`);
+  }
+}
+
+/**
+ * Fetch address data from Blockscout
+ */
+async function fetchAddressData(address, blockscoutUrl) {
+  const chainMatch = blockscoutUrl.match(/https:\/\/([^.]+)\.blockscout\.com/);
+  const chain = chainMatch ? chainMatch[1] : 'eth';
+
+  const apiBase = chain === 'sepolia'
+    ? 'https://sepolia.blockscout.com/api/v2'
+    : `https://${chain}.blockscout.com/api/v2`;
+
+  try {
+    const response = await fetch(`${apiBase}/addresses/${address}`);
+    if (!response.ok) throw new Error(`Blockscout API error: ${response.status}`);
+
+    const addressData = await response.json();
+
+    console.log('[Background] Fetched address data:', addressData);
+
+    return {
+      address,
+      type: addressData.is_contract ? 'contract' : 'wallet',
+      balance: addressData.coin_balance,
+      tx_count: addressData.transactions_count,
+      verified: addressData.verified_info?.is_verified || false,
+      token_info: addressData.token,
+      ens_name: addressData.ens_domain_name,
+      implementation: addressData.implementation_address,
+    };
+  } catch (error) {
+    console.error('[Background] Error fetching address:', error);
+    throw new Error(`Failed to fetch address: ${error.message}`);
+  }
+}
+
+/**
+ * Fetch token data from Blockscout
+ */
+async function fetchTokenData(tokenAddress, blockscoutUrl) {
+  const chainMatch = blockscoutUrl.match(/https:\/\/([^.]+)\.blockscout\.com/);
+  const chain = chainMatch ? chainMatch[1] : 'eth';
+
+  const apiBase = chain === 'sepolia'
+    ? 'https://sepolia.blockscout.com/api/v2'
+    : `https://${chain}.blockscout.com/api/v2`;
+
+  try {
+    const response = await fetch(`${apiBase}/tokens/${tokenAddress}`);
+    if (!response.ok) throw new Error(`Blockscout API error: ${response.status}`);
+
+    const tokenData = await response.json();
+
+    console.log('[Background] Fetched token data:', tokenData);
+
+    return {
+      address: tokenAddress,
+      name: tokenData.name,
+      symbol: tokenData.symbol,
+      decimals: tokenData.decimals,
+      total_supply: tokenData.total_supply,
+      holders: tokenData.holders,
+      type: tokenData.type,
+      verified: tokenData.verified_info?.is_verified || false,
+      exchange_rate: tokenData.exchange_rate,
+    };
+  } catch (error) {
+    console.error('[Background] Error fetching token:', error);
+    throw new Error(`Failed to fetch token: ${error.message}`);
+  }
+}
+
+/**
+ * Claude Client for on-chain explanations
+ */
+class ClaudeClient {
   constructor(apiKey) {
     this.apiKey = apiKey;
     this.apiBase = 'https://api.anthropic.com/v1';
   }
 
-  async analyzeTokenSafety(tokenData) {
-    const systemPrompt = `You are a DeFi token safety analyzer. Return ONLY valid JSON:
+  async explainOnChainData(type, pageInfo) {
+    let systemPrompt = '';
+    let userMessage = '';
+
+    if (type === 'transaction') {
+      systemPrompt = `You are an expert blockchain analyst. Explain this transaction to a regular user.
+Respond with ONLY valid JSON (no markdown, no code blocks):
 {
-  "safety_score": <0-100>,
-  "verdict": "<SCAM|RISKY|SAFE>",
-  "risks": ["<risk1>", "<risk2>"],
-  "reason": "<explanation>",
-  "confidence": "<HIGH|MEDIUM|LOW>"
+  "summary": "<1-2 sentence explanation of what happened>",
+  "key_actions": ["<action1>", "<action2>"],
+  "risks": ["<risk1>"] or [] if no risks,
+  "details": "<additional context>"
 }
 
-IMPORTANT:
-- If no risks found, return empty array: "risks": []
-- Never include text like "none identified" or "no risks" in the risks array
-- Leave risks array EMPTY if address is safe`;
+Focus on:
+- What tokens were transferred (if any)
+- Which protocols were used
+- Whether contracts were verified
+- Gas costs and efficiency
+- Any suspicious patterns`;
 
-    const userMessage = `Analyze token: ${JSON.stringify(tokenData)}`;
+      userMessage = `Analyze this transaction:\n${JSON.stringify(pageInfo, null, 2)}`;
+    } else if (type === 'address') {
+      systemPrompt = `You are an expert blockchain analyst. Summarize this address for a regular user.
+Respond with ONLY valid JSON (no markdown, no code blocks):
+{
+  "summary": "<1-2 sentence description of what this address is>",
+  "key_actions": ["<pattern1>", "<pattern2>"],
+  "risks": ["<risk1>"] or [] if no risks,
+  "details": "<useful information>"
+}
 
-    return this._chat(userMessage, systemPrompt);
-  }
+Focus on:
+- Is this a wallet, contract, or token?
+- Activity level and patterns
+- Whether it's verified or trusted
+- Any red flags`;
 
-  async getAdvisorResponse(userMessage, systemPrompt) {
-    const response = await this._chat(userMessage, systemPrompt);
-    // For advisor responses, we expect plain text, not JSON
-    // If Claude returns text, extract it; if it returns JSON, convert to text
-    if (typeof response === 'string') {
-      return response;
-    }
-    return JSON.stringify(response);
-  }
+      userMessage = `Analyze this address:\n${JSON.stringify(pageInfo, null, 2)}`;
+    } else if (type === 'token') {
+      systemPrompt = `You are an expert DeFi analyst. Summarize this token for a regular user.
+Respond with ONLY valid JSON (no markdown, no code blocks):
+{
+  "summary": "<1-2 sentence description of the token>",
+  "key_actions": ["<feature1>", "<feature2>"],
+  "risks": ["<risk1>"] or [] if no risks,
+  "details": "<useful information>"
+}
 
-  async _chat(userMessage, systemPrompt) {
-    if (!this.apiKey) {
-      throw new Error('Claude API key not configured. Please set it in settings.');
+Focus on:
+- Token type (ERC-20, etc)
+- Total supply and holder count
+- Whether it's verified
+- Any red flags or concerns`;
+
+      userMessage = `Analyze this token:\n${JSON.stringify(pageInfo, null, 2)}`;
     }
 
     try {
-      console.log('[Claude] Sending message to Claude API...');
-
       const response = await fetch(`${this.apiBase}/messages`, {
         method: 'POST',
         headers: {
@@ -179,72 +331,73 @@ IMPORTANT:
       if (!response.ok) {
         const error = await response.json();
         const errorMessage = error.error?.message || `API error ${response.status}`;
-        console.error(`[Claude] Error: ${errorMessage}`);
         throw new Error(errorMessage);
       }
 
       const data = await response.json();
       const responseText = data.content[0].text;
 
-      console.log('[Claude] Received response');
-
-      // Try to parse as JSON if it looks like JSON, otherwise return as plain text
+      // Extract JSON
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        console.log('[Claude] Parsing as JSON...');
         return JSON.parse(jsonMatch[0]);
       }
 
-      // Return as plain text for advisor responses
-      console.log('[Claude] Returning as plain text...');
-      return responseText;
+      throw new Error('Could not parse Claude response as JSON');
     } catch (error) {
       console.error('[Claude] Error:', error);
       throw error;
     }
   }
-}
 
-/**
- * Simplified Blockscout Client (for MVP)
- */
-class SimplifiedBlockscoutClient {
-  constructor(chainId = '1') {
-    this.chainId = chainId;
-    // Use eth.blockscout.com for Ethereum Mainnet (more reliable)
-    // For Sepolia: https://sepolia.blockscout.com/api/v2
-    this.apiBase = chainId === '11155111'
-      ? 'https://sepolia.blockscout.com/api/v2'
-      : 'https://eth.blockscout.com/api/v2';
-  }
+  async answerQuestion(type, pageInfo, question) {
+    const systemPrompt = `You are an expert blockchain analyst answering questions about on-chain data.
+Keep responses concise and clear for non-technical users.
+Respond with ONLY valid JSON (no markdown, no code blocks):
+{
+  "summary": "<direct answer to the question>",
+  "key_actions": ["<relevant action1>"] or [],
+  "risks": ["<risk1>"] or [] if no risks,
+  "details": "<additional context or explanation>"
+}`;
 
-  async getAddressInfo(address) {
-    return this._call(`/addresses/${address}`);
-  }
+    const userMessage = `Context: ${type}\nData: ${JSON.stringify(pageInfo)}\n\nQuestion: ${question}`;
 
-  async _call(endpoint, params = {}) {
     try {
-      const url = new URL(`${this.apiBase}${endpoint}`);
-
-      Object.entries(params).forEach(([key, value]) => {
-        if (key === 'limit') return;
-        if (value !== null && value !== undefined) {
-          url.searchParams.append(key, value);
-        }
+      const response = await fetch(`${this.apiBase}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: JSON.stringify({
+          model: 'claude-3-5-sonnet-20241022',
+          max_tokens: 1024,
+          messages: [{ role: 'user', content: userMessage }],
+          system: systemPrompt,
+        }),
       });
 
-      const urlString = url.toString();
-      console.log(`[Blockscout] Calling: ${urlString}`);
-
-      const response = await fetch(urlString);
       if (!response.ok) {
-        const errorData = await response.json();
-        console.error(`[Blockscout] Error ${response.status}:`, errorData);
-        throw new Error(`API error ${response.status}`);
+        const error = await response.json();
+        const errorMessage = error.error?.message || `API error ${response.status}`;
+        throw new Error(errorMessage);
       }
-      return await response.json();
+
+      const data = await response.json();
+      const responseText = data.content[0].text;
+
+      // Extract JSON
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+      }
+
+      throw new Error('Could not parse Claude response as JSON');
     } catch (error) {
-      console.error('[Blockscout] Error:', error);
+      console.error('[Claude] Error:', error);
       throw error;
     }
   }
