@@ -1,9 +1,10 @@
 /**
- * SynthX Content Script - Redesigned UI
+ * SynthX Content Script - Enhanced with Pattern Analysis
  *
  * - Detects Blockscout page type (address, tx, token)
- * - Injects improved overlay UI with better design
- * - Handles user interactions
+ * - Shows scanned address/hash in header
+ * - Detects compromised wallets (immediate fund transfers)
+ * - Improved color scheme (cyan/teal instead of purple)
  */
 
 console.log('[SynthX] Content script loaded');
@@ -57,6 +58,14 @@ function detectPageData() {
 }
 
 /**
+ * Shorten address for display
+ */
+function shortenAddress(addr) {
+  if (!addr) return '';
+  return addr.substring(0, 6) + '...' + addr.substring(addr.length - 4);
+}
+
+/**
  * Inject improved overlay UI
  */
 function injectOverlay(pageData) {
@@ -75,9 +84,9 @@ function injectOverlay(pageData) {
     right: 0;
     width: 420px;
     height: 100vh;
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fb 100%);
-    border-left: 1px solid #e5e7eb;
-    box-shadow: -4px 0 20px rgba(0, 0, 0, 0.08);
+    background: linear-gradient(135deg, #ffffff 0%, #f0f9ff 100%);
+    border-left: 2px solid #00d9ff;
+    box-shadow: -8px 0 32px rgba(0, 217, 255, 0.12);
     z-index: 10000;
     display: flex;
     flex-direction: column;
@@ -85,25 +94,36 @@ function injectOverlay(pageData) {
     overflow: hidden;
   `;
 
-  // Header with minimize button
+  // Header with info and minimize button
   const header = document.createElement('div');
   header.style.cssText = `
-    padding: 16px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 14px 16px;
+    background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
     color: white;
     border-bottom: none;
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
   `;
+
+  const displayValue = pageData.type === 'transaction'
+    ? shortenAddress(pageData.value)
+    : pageData.type === 'token'
+    ? shortenAddress(pageData.value)
+    : shortenAddress(pageData.value);
+
+  const typeEmoji = pageData.type === 'transaction' ? '🔄' : pageData.type === 'token' ? '🪙' : '👤';
+
   header.innerHTML = `
     <div style="flex: 1;">
       <h2 style="margin: 0; font-size: 18px; font-weight: 700; letter-spacing: -0.5px;">🧠 SynthX</h2>
-      <p style="margin: 4px 0 0 0; color: rgba(255,255,255,0.8); font-size: 11px; font-weight: 500;">AI Analysis</p>
+      <p style="margin: 4px 0 0 0; color: rgba(255,255,255,0.85); font-size: 10px; font-weight: 500; font-family: monospace; word-break: break-all;">
+        ${typeEmoji} ${displayValue}
+      </p>
     </div>
     <div style="display: flex; gap: 8px;">
       <button id="synthx-minimize" style="
-        background: rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.25);
         border: none;
         color: white;
         cursor: pointer;
@@ -115,10 +135,9 @@ function injectOverlay(pageData) {
         align-items: center;
         justify-content: center;
         transition: all 0.2s;
-        hover: background: rgba(255,255,255,0.3);
       " title="Minimize">−</button>
       <button id="synthx-close" style="
-        background: rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.25);
         border: none;
         color: white;
         cursor: pointer;
@@ -152,18 +171,18 @@ function injectOverlay(pageData) {
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      color: #666;
+      color: #0099cc;
     ">
       <div style="
         display: inline-block;
         width: 40px;
         height: 40px;
-        border: 3px solid #e5e7eb;
-        border-top: 3px solid #667eea;
+        border: 3px solid #e0f7ff;
+        border-top: 3px solid #00d9ff;
         border-radius: 50%;
         animation: spin 1s linear infinite;
       "></div>
-      <p style="margin-top: 16px; font-size: 13px; color: #666;">Analyzing ${pageData.type}...</p>
+      <p style="margin-top: 16px; font-size: 13px; color: #0099cc;">Analyzing ${pageData.type}...</p>
     </div>
     <div id="synthx-result" style="display: none; padding: 16px; flex: 1; overflow-y: auto;"></div>
     <div id="synthx-error" style="
@@ -182,7 +201,7 @@ function injectOverlay(pageData) {
   buttonBar.style.cssText = `
     padding: 12px 16px;
     background: white;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid #e0f7ff;
     display: flex;
     gap: 8px;
   `;
@@ -190,7 +209,7 @@ function injectOverlay(pageData) {
     <button id="synthx-scan-btn" style="
       flex: 1;
       padding: 10px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
       color: white;
       border: none;
       border-radius: 6px;
@@ -206,7 +225,7 @@ function injectOverlay(pageData) {
   qa.style.cssText = `
     padding: 12px 16px;
     background: white;
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid #e0f7ff;
   `;
   qa.innerHTML = `
     <input
@@ -216,11 +235,11 @@ function injectOverlay(pageData) {
       style="
         width: 100%;
         padding: 10px 12px;
-        border: 1px solid #d1d5db;
+        border: 1px solid #b3e5fc;
         border-radius: 6px;
         font-size: 12px;
         box-sizing: border-box;
-        background: #f9fafb;
+        background: #f0f9ff;
         transition: all 0.2s;
       "
     />
@@ -237,12 +256,13 @@ function injectOverlay(pageData) {
     }
     #synthx-overlay input:focus {
       outline: none;
-      border-color: #667eea;
+      border-color: #00d9ff;
       background: white;
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.1);
     }
     #synthx-overlay button:hover {
       opacity: 0.9;
+      transform: scale(1.02);
     }
     #synthx-result {
       color: #1f2937;
@@ -271,7 +291,7 @@ function injectOverlay(pageData) {
     right: 20px;
     width: 50px;
     height: 50px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
     color: white;
     border: none;
     border-radius: 50%;
@@ -281,7 +301,7 @@ function injectOverlay(pageData) {
     align-items: center;
     justify-content: center;
     font-size: 24px;
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 217, 255, 0.4);
     transition: all 0.2s;
   `;
   restoreBtn.innerHTML = '🧠';
@@ -302,6 +322,7 @@ function injectOverlay(pageData) {
   });
 
   document.getElementById('synthx-scan-btn').addEventListener('click', () => {
+    console.log('[SynthX] Scan button clicked - re-analyzing');
     analyzePageData();
   });
 
@@ -329,9 +350,14 @@ function analyzePageData() {
   if (resultEl) resultEl.style.display = 'none';
   if (errorEl) errorEl.style.display = 'none';
 
+  console.log('[SynthX] Sending analyze message for:', currentPageData);
+
   chrome.runtime.sendMessage(
     { action: 'analyzePage', pageData: currentPageData },
-    handleAnalysisResponse
+    (response) => {
+      console.log('[SynthX] Received response:', response);
+      handleAnalysisResponse(response);
+    }
   );
 }
 
@@ -365,7 +391,7 @@ function formatAnalysis(analysis) {
   const html = `
     <div style="color: #1f2937; font-size: 13px; line-height: 1.6;">
       ${analysis.summary ? `
-        <div style="margin-bottom: 16px; padding: 12px; background: #f0f9ff; border-left: 4px solid #3b82f6; border-radius: 4px; color: #1e40af;">
+        <div style="margin-bottom: 16px; padding: 12px; background: linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 100%); border-left: 4px solid #00d9ff; border-radius: 4px; color: #006680;">
           <strong>Summary:</strong><br/>
           ${escapeHtml(analysis.summary)}
         </div>
@@ -373,7 +399,7 @@ function formatAnalysis(analysis) {
 
       ${analysis.key_actions && analysis.key_actions.length > 0 ? `
         <div style="margin-bottom: 16px;">
-          <h3 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #667eea;">📋 Key Actions</h3>
+          <h3 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #0099cc;">📋 Key Actions</h3>
           <ul style="margin: 0; padding-left: 20px; color: #374151;">
             ${analysis.key_actions.map(action => `<li style="margin: 6px 0; font-size: 13px;">${escapeHtml(action)}</li>`).join('')}
           </ul>
@@ -381,21 +407,21 @@ function formatAnalysis(analysis) {
       ` : ''}
 
       ${analysis.risks && analysis.risks.length > 0 ? `
-        <div style="margin-bottom: 16px; padding: 12px; background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 4px;">
-          <h3 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px;">⚠️ Potential Concerns</h3>
+        <div style="margin-bottom: 16px; padding: 12px; background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%); border-left: 4px solid #ef4444; border-radius: 4px;">
+          <h3 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px;">⚠️ Security Alerts</h3>
           <ul style="margin: 0; padding-left: 20px; color: #7c2d12;">
             ${analysis.risks.map(risk => `<li style="margin: 6px 0; font-size: 13px;">${escapeHtml(risk)}</li>`).join('')}
           </ul>
         </div>
       ` : `
-        <div style="margin-bottom: 16px; padding: 12px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px; color: #166534;">
-          <strong>✅ No major concerns detected</strong>
+        <div style="margin-bottom: 16px; padding: 12px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #10b981; border-radius: 4px; color: #166534;">
+          <strong>✅ No security concerns detected</strong>
         </div>
       `}
 
       ${analysis.details ? `
-        <div style="padding: 12px; background: #fafafa; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 12px; color: #666;">
-          <strong style="color: #1f2937;">Details:</strong><br/><br/>
+        <div style="padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 12px; color: #666; line-height: 1.7;">
+          <strong style="color: #1f2937;">📊 Details:</strong><br/><br/>
           ${escapeHtml(analysis.details)}
         </div>
       ` : ''}
@@ -427,12 +453,12 @@ function handleFollowUp(question) {
         display: inline-block;
         width: 30px;
         height: 30px;
-        border: 2px solid #e5e7eb;
-        border-top: 2px solid #667eea;
+        border: 2px solid #e0f7ff;
+        border-top: 2px solid #00d9ff;
         border-radius: 50%;
         animation: spin 1s linear infinite;
       "></div>
-      <p style="margin-top: 12px; color: #666; font-size: 12px;">Thinking...</p>
+      <p style="margin-top: 12px; color: #0099cc; font-size: 12px;">Thinking...</p>
     </div>
   `;
 

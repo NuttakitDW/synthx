@@ -286,12 +286,22 @@ Respond with ONLY valid JSON (no markdown, no code blocks):
   "details": "<useful information>"
 }
 
+CRITICAL PATTERN DETECTION:
+- COMPROMISED WALLET: If funds are transferred IN immediately followed by transfer OUT
+  This pattern suggests the private key was leaked/compromised
+  Example: Receive ETH/tokens → immediately send to different address
+  Label this as: "⚠️ Possible compromised wallet - immediate fund sweeping detected"
+- BOT ACTIVITY: If patterns show repeated buying/selling in quick succession
+  Label as: "⚠️ Possible bot-controlled account"
+- DRAIN WALLET: If all transfers are outbound and origin unknown
+  Label as: "⚠️ Possible drain/theft activity"
+
 IMPORTANT GUIDELINES:
 - Do NOT flag verified contracts as risks
-- Only flag actual issues: unverified + unusual activity, honeypots, exploits
-- Verified tokens and major protocols are safe
-- Leave risks EMPTY [] for verified addresses
-- Focus on: actual malicious patterns, not on being unverified by default`;
+- Do NOT flag normal trading activity as risks
+- Only flag ACTUAL suspicious patterns like above
+- Leave risks EMPTY [] for normal wallets
+- Focus on: actual exploitation/compromise patterns`;
 
       userMessage = `Analyze this address:\n${JSON.stringify(pageInfo, null, 2)}`;
     } else if (type === 'token') {
