@@ -1,35 +1,38 @@
 # SynthX - Web3 Intelligence Extension
 
-AI-powered blockchain intelligence and safety analysis for DeFi users.
+AI-powered blockchain intelligence powered by Blockscout MCP.
 
 ## What is SynthX?
 
-SynthX is a Chrome extension that provides real-time insights about tokens and wallets using:
-- **Claude AI** for intelligent analysis
-- **Blockscout** for blockchain data
-- **Your browser** for everything else (secure, private, no servers)
+SynthX is a Chrome extension that provides intelligent blockchain analysis using:
+- **Claude AI** for smart analysis and insights
+- **Blockscout MCP** for reliable, real blockchain data
+- **Your browser** for everything (secure, private, no servers)
 
-## Features (MVP v0.1)
+## Features (Current: v1.0.0)
 
 ### 🔍 Address Scanner
 Analyze any Ethereum address (token, wallet, or contract) for safety:
-- Contract verification status
 - AI-powered risk assessment
-- Detailed risk explanations
+- Safety scoring (0-100)
+- Specific risk identification
 - **Result:** 🟢 SAFE / 🟡 RISKY / 🔴 SCAM with confidence levels
 
-### 💱 Trade (Uniswap V3 on Sepolia Testnet)
-Execute token swaps directly from the extension:
-- Get real-time swap quotes
-- Preview transaction details (gas cost, slippage, price impact)
-- Execute swaps via MetaMask
-- View transactions on Sepolia Etherscan
-- **Testnet only** - Safe for testing
+**What we scan:**
+- Smart contracts and tokens
+- Wallets and addresses
+- Holder distribution
+- Transaction history
+- Verification status
 
-**Note:** Trade feature is in MVP stage with mock quotes for testing. Real swap execution requires:
-- MetaMask installed and configured for Sepolia
-- Test ETH from a faucet
-- Active browser tab during swap execution
+---
+
+## Removed Features
+
+**Trade/Swap Execution (Removed - v1.0.0)**
+- Reason: Unreliable browser extension architecture
+- Better alternative: Use Uniswap.org directly
+- Focus: Shifted to analysis and intelligence (what we're good at)
 
 ## Installation & Setup
 
@@ -80,26 +83,6 @@ cp .env.example .env
 - USDC: `0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48` (should be SAFE)
 - Vitalik: `0xd8dA6BF26964aF9D7eEd9e03E53415D37AA96045` (should be SAFE)
 
-### Trade Tokens (Sepolia Testnet)
-
-1. Click SynthX icon
-2. In the **💱 Trade** tab, enter:
-   - From Token: Token address to swap from
-   - Amount: How much to swap
-   - To Token: Token address to swap to
-   - Platform: Uniswap V3 (default)
-
-3. Click **Get Quote** to see estimated output
-4. Review swap preview (gas cost, slippage, price impact)
-5. Click **Execute Swap**
-6. MetaMask popup appears → Click **Confirm**
-7. View transaction on Sepolia Etherscan
-
-**Test tokens on Sepolia:**
-- WETH: `0xfFf9976782d46CC05630D1f6eBAb18b2324d6B14`
-- USDC: `0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238`
-
-For detailed testing instructions, see **TRADE_TESTING.md**
 
 ## Testing Checklist
 
@@ -128,26 +111,7 @@ For detailed testing instructions, see **TRADE_TESTING.md**
 - [ ] Result displays with verdict (should be SAFE), score, risks
 - [ ] Confidence level displayed
 
-### ✅ Phase 4: Trade Feature (MVP)
-
-- [ ] Click "💱 Trade" tab
-- [ ] Tab navigation works smoothly
-- [ ] Fill in From Token, Amount, To Token
-- [ ] Click "Get Quote"
-- [ ] Loading spinner appears
-- [ ] Swap preview displays with mock values
-- [ ] "Execute Swap" button becomes enabled
-
-### ✅ Phase 5: MetaMask Integration
-
-- [ ] Have MetaMask installed
-- [ ] MetaMask set to Sepolia testnet
-- [ ] Have test ETH available
-- [ ] Try to execute swap with active browser tab open
-- [ ] MetaMask popup should appear
-- [ ] Can see transaction details
-
-### ✅ Phase 6: Error Handling
+### ✅ Phase 4: Error Handling
 
 - [ ] Invalid address → shows error message
 - [ ] No API key → shows helpful error
@@ -193,46 +157,63 @@ Uniswap:  0x1111111254fb6c44bac0bed2854e76f90643097d
 
 ```
 synthx/
-├── manifest.json                 # Extension config
-├── config.js                     # Settings
-├── background.js                 # Service worker
-├── sidebar.html                  # UI
+├── manifest.json                 # Extension config (Manifest V3)
+├── background.js                 # Service worker (message handler)
+├── sidebar.html                  # UI structure
 ├── sidebar.css                   # Styling
-├── sidebar.js                    # Logic
-├── content.js                    # Content script
+├── sidebar.js                    # UI logic
 ├── utils/
-│   ├── blockscout-client.js     # Blockscout API
-│   └── claude-client.js          # Claude API
+│   ├── blockscout-client.js     # Blockscout API client
+│   └── claude-client.js          # Claude AI client
 ├── components/
-│   ├── token-safety.js           # Token analyzer
+│   ├── token-safety.js           # Token safety analyzer
 │   └── wallet-analyzer.js        # Wallet analyzer
 ├── .env.example                  # Environment template
+├── BLOCKSCOUT_ROADMAP.md         # 5-phase feature plan
 └── README.md                     # This file
 ```
 
-## Next Steps (Roadmap)
+## Next Steps (Blockscout MCP Roadmap)
 
-### v0.2
-- [ ] MEV/Sandwich detection
-- [ ] Trading Coach
-- [ ] Token holder tracking
+For detailed feature roadmap with effort estimates, see **BLOCKSCOUT_ROADMAP.md**
 
-### v0.3
-- [ ] Multi-chain support
-- [ ] Portfolio tracking
-- [ ] Notifications
+### Phase 1: Enhanced Scanner (2-3 hours)
+- Better token contract details display
+- Holder distribution analysis
+- Recent transaction activity
+- Contract verification status
 
-### v1.0
-- [ ] Security audit
-- [ ] Chrome Web Store
-- [ ] Advanced analytics
+### Phase 2: Portfolio Dashboard (4-5 hours)
+- Wallet address analysis
+- Token holdings with values
+- NFT detection
+- Transaction history
+
+### Phase 3: Transaction Analyzer (3-4 hours)
+- Analyze transaction hashes
+- Decode contract interactions
+- Show token transfers
+- Plain English explanation of what happened
+
+### Phase 4: Scam Detector (6-8 hours)
+- Honeypot detection
+- Rug pull risk assessment
+- Whale concentration analysis
+- Contract code review
+
+### Phase 5: Market Analyzer (6-8 hours)
+- Historical holder trends
+- Trading volume analysis
+- Activity spike detection
+- Timeline visualization
 
 ## Security
 
 ✅ **API keys** stored locally only (Chrome storage)
-✅ **No wallet access** - MetaMask manages transactions
-✅ **Read-only** - cannot sign transactions
-✅ **Open source** - all code transparent
+✅ **Read-only analysis** - Blockscout data only, no blockchain writes
+✅ **No wallet access** - Extension only reads blockchain data
+✅ **No transaction signing** - Cannot execute any transactions
+✅ **Open source** - All code transparent and auditable
 
 ## Testing Workflow
 
@@ -263,5 +244,6 @@ For issues or feedback:
 
 ---
 
-**Status:** MVP v0.1 - Ready for Testing
+**Status:** v1.0.0 - Analysis-Focused, Blockscout MCP-Powered
 **Last Updated:** 2025-10-24
+**Next Phase:** Enhanced Scanner (Phase 1 of BLOCKSCOUT_ROADMAP.md)
