@@ -114,12 +114,25 @@ async function handleAnalyzeWallet(data) {
   const txns = await blockscoutClient.getTransactionsByAddress(walletAddress, { limit: 100 });
   const transfers = await blockscoutClient.getTokenTransfersByAddress(walletAddress, { limit: 100 });
 
+  // Summarize data to reduce token usage
   const walletData = {
     address: walletAddress,
     total_transactions: txns?.items?.length || 0,
     total_transfers: transfers?.items?.length || 0,
-    transactions: txns?.items?.slice(0, 20) || [],
-    transfers: transfers?.items?.slice(0, 20) || [],
+    // Only send last 5 transactions (not 20) to reduce token usage
+    transactions: txns?.items?.slice(0, 5).map((tx) => ({
+      hash: tx.hash,
+      method: tx.method,
+      timestamp: tx.timestamp,
+      status: tx.status,
+    })) || [],
+    // Only send last 5 transfers
+    transfers: transfers?.items?.slice(0, 5).map((t) => ({
+      from: t.from?.hash,
+      to: t.to?.hash,
+      token: t.token?.symbol,
+      timestamp: t.timestamp,
+    })) || [],
   };
 
   // Analyze with Claude
@@ -172,17 +185,10 @@ class SimplifiedClaudeClient {
   }
 
   async analyzeWalletTrading(walletData) {
-    const systemPrompt = `You are a trading analyst. Return ONLY valid JSON:
-{
-  "win_rate": "<percentage>",
-  "total_trades": <number>,
-  "biggest_loss": "<amount>",
-  "most_profitable_pair": "<pair>",
-  "risk_patterns": ["<pattern>"],
-  "recommendation": "<advice>"
-}`;
+    const systemPrompt = `Return ONLY JSON:
+{"win_rate":"N/A","total_trades":0,"biggest_loss":"Unknown","most_profitable_pair":"Unknown","risk_patterns":[],"recommendation":"Monitor"}`;
 
-    const userMessage = `Analyze wallet: ${JSON.stringify(walletData)}`;
+    const userMessage = `Wallet ${walletData.address}: ${walletData.total_transactions} txns, ${walletData.total_transfers} transfers`;
 
     return this._chat(userMessage, systemPrompt);
   }
