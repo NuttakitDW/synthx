@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "SynthX - Web3 Intelligence",
+  "name": "SynthX - Contract Scanner",
   "version": "1.0.0",
-  "description": "AI-powered blockchain intelligence powered by Blockscout MCP",
+  "description": "Analyze Ethereum contracts for safety using AI. Get instant verdict: SAFE / RISKY / SCAM.",
   "permissions": [
     "storage"
   ],
@@ -13,7 +13,7 @@
   ],
   "action": {
     "default_popup": "sidebar.html",
-    "default_title": "SynthX - Web3 Intelligence"
+    "default_title": "SynthX - Contract Scanner"
   },
   "background": {
     "service_worker": "background.js"

@@ -52,6 +52,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .catch((error) => sendResponse({ success: false, error: error.message }));
       return true;
 
+
     case 'ping':
       sendResponse({ success: true, message: 'SynthX is running' });
       return true;
@@ -109,6 +110,8 @@ async function handleSetApiKey(apiKey) {
   return { message: 'API key saved successfully' };
 }
 
+
+
 /**
  * Simplified Claude Client (for MVP)
  * In production, would use full ClaudeClient module
@@ -137,6 +140,16 @@ IMPORTANT:
     const userMessage = `Analyze token: ${JSON.stringify(tokenData)}`;
 
     return this._chat(userMessage, systemPrompt);
+  }
+
+  async getAdvisorResponse(userMessage, systemPrompt) {
+    const response = await this._chat(userMessage, systemPrompt);
+    // For advisor responses, we expect plain text, not JSON
+    // If Claude returns text, extract it; if it returns JSON, convert to text
+    if (typeof response === 'string') {
+      return response;
+    }
+    return JSON.stringify(response);
   }
 
   async _chat(userMessage, systemPrompt) {
@@ -173,15 +186,18 @@ IMPORTANT:
       const data = await response.json();
       const responseText = data.content[0].text;
 
-      console.log('[Claude] Received response, parsing JSON...');
+      console.log('[Claude] Received response');
 
-      // Extract JSON from response
+      // Try to parse as JSON if it looks like JSON, otherwise return as plain text
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('Invalid response format');
+      if (jsonMatch) {
+        console.log('[Claude] Parsing as JSON...');
+        return JSON.parse(jsonMatch[0]);
       }
 
-      return JSON.parse(jsonMatch[0]);
+      // Return as plain text for advisor responses
+      console.log('[Claude] Returning as plain text...');
+      return responseText;
     } catch (error) {
       console.error('[Claude] Error:', error);
       throw error;
