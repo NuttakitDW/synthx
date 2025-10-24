@@ -293,7 +293,7 @@ function handleFollowUp(question, pageData) {
 /**
  * Initialize on page load
  */
-document.addEventListener('DOMContentLoaded', () => {
+function initializeSynthX() {
   const pageData = detectPageData();
 
   if (pageData) {
@@ -302,4 +302,12 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     console.log('[SynthX] Not a Blockscout page we recognize');
   }
-});
+}
+
+// Try both DOMContentLoaded and immediate execution
+// (since manifest run_at: document_end may fire after DOMContentLoaded)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeSynthX);
+} else {
+  initializeSynthX();
+}

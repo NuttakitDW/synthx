@@ -4,8 +4,7 @@
   "version": "1.0.0",
   "description": "Transform Blockscout into an AI-powered investigation tool. Get natural-language explanations of transactions, addresses, and contracts.",
   "permissions": [
-    "storage",
-    "webRequest"
+    "storage"
   ],
   "host_permissions": [
     "https://api.anthropic.com/*",
