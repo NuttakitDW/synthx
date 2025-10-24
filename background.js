@@ -278,6 +278,22 @@ async function handleExecuteSwap(data) {
 
   // Step 2: Send swap execution request to content script
   try {
+    // First, try to inject content script if not already there
+    try {
+      console.log('[Background] Attempting to inject content script...');
+      await chrome.scripting.executeScript({
+        target: { tabId: activeTab.id },
+        files: ['content.js'],
+      });
+      console.log('[Background] Content script injected successfully');
+    } catch (injectError) {
+      console.warn('[Background] Content script injection warning:', injectError.message);
+      // Continue anyway - script might already be there
+    }
+
+    // Give content script a moment to load
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     const response = await chrome.tabs.sendMessage(activeTab.id, {
       action: 'executeSwapViaMetaMask',
       data: {
@@ -297,11 +313,15 @@ async function handleExecuteSwap(data) {
   } catch (error) {
     console.error('[Background] Error executing swap:', error);
 
-    // If content script fails, provide helpful error
+    // Provide helpful error messages
     if (error.message.includes('Could not establish connection')) {
       throw new Error(
-        'Could not connect to webpage. Please ensure you have an active tab open and try again.'
+        'Content script not found on this page. Try: 1) Refresh the page, 2) Ensure MetaMask is installed, 3) Try another website like uniswap.org'
       );
+    }
+
+    if (error.message.includes('Extension context invalidated')) {
+      throw new Error('Extension was updated. Please refresh the page and try again.');
     }
 
     throw error;

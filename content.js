@@ -6,32 +6,44 @@
  * Handles swap execution via MetaMask
  */
 
-console.log('[Content] SynthX content script loaded');
+console.log('[Content] SynthX content script loaded on page:', window.location.href);
 
 /**
  * Inject dependencies and injected.js into page context
  */
 function injectScripts() {
+  console.log('[Content] Starting script injection...');
+
   // Load ethers.js first
   const ethersScript = document.createElement('script');
   ethersScript.src = 'https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js';
+  ethersScript.onerror = function () {
+    console.error('[Content] Failed to load ethers.js from CDN');
+  };
   ethersScript.onload = function () {
-    console.log('[Content] ethers.js loaded');
+    console.log('[Content] ethers.js loaded successfully');
 
     // Load Uniswap helper
     const helperScript = document.createElement('script');
     helperScript.src = chrome.runtime.getURL('uniswap-helper.js');
+    helperScript.onerror = function () {
+      console.error('[Content] Failed to load uniswap-helper.js');
+    };
     helperScript.onload = function () {
-      console.log('[Content] Uniswap helper loaded');
+      console.log('[Content] Uniswap helper loaded successfully');
+      console.log('[Content] Window.UniswapHelper available:', typeof window.UniswapHelper !== 'undefined');
 
       // Finally load injected script
       const injectedScript = document.createElement('script');
       injectedScript.src = chrome.runtime.getURL('injected.js');
+      injectedScript.onerror = function () {
+        console.error('[Content] Failed to load injected.js');
+      };
       injectedScript.onload = function () {
         this.remove();
+        console.log('[Content] Injected script loaded into page context');
       };
       (document.head || document.documentElement).appendChild(injectedScript);
-      console.log('[Content] Injected script loaded into page context');
     };
     (document.head || document.documentElement).appendChild(helperScript);
   };
