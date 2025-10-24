@@ -52,6 +52,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         .catch((error) => sendResponse({ success: false, error: error.message }));
       return true; // Keep channel open for async response
 
+    case 'parseTradeCommand':
+      handleParseTradeCommand(request.data)
+        .then((result) => sendResponse({ success: true, data: result }))
+        .catch((error) => sendResponse({ success: false, error: error.message }));
+      return true;
+
     case 'getSwapQuote':
       handleGetSwapQuote(request.data)
         .then((result) => sendResponse({ success: true, data: result }))
@@ -114,18 +120,50 @@ async function handleAnalyzeAddress(data) {
 }
 
 /**
- * Handle swap quote request
+ * Parse natural language trade commands using Claude AI
+ */
+async function handleParseTradeCommand(data) {
+  const { command } = data;
+
+  console.log(`[Background] Parsing command: ${command}`);
+
+  const systemPrompt = `You are a DeFi trade command parser. Extract swap parameters from user input and return ONLY valid JSON:
+{
+  "fromToken": "<token name or address>",
+  "toToken": "<token name or address>",
+  "amount": "<number>"
+}
+
+Examples:
+  "Swap 0.01 ETH for USDC" → {"fromToken": "ETH", "toToken": "USDC", "amount": "0.01"}
+  "Trade 5 USDC to WETH" → {"fromToken": "USDC", "toToken": "WETH", "amount": "5"}
+  "Exchange 100 USDC for 0.05 ETH" → {"fromToken": "USDC", "toToken": "ETH", "amount": "100"}
+
+Return ONLY the JSON object, no other text.`;
+
+  try {
+    const response = await claudeClient._chat(command, systemPrompt);
+    console.log('[Background] Parsed command:', response);
+
+    return { parsed: response };
+  } catch (error) {
+    console.error('[Background] Error parsing command:', error);
+    throw new Error('Failed to parse command: ' + error.message);
+  }
+}
+
+/**
+ * Handle swap quote request with AI recommendations
  */
 async function handleGetSwapQuote(data) {
   const { fromToken, amount, toToken, platform } = data;
 
   console.log(`[Background] Getting swap quote: ${amount} ${fromToken} -> ${toToken}`);
 
-  // For now, return a mock quote
-  // In production, would integrate with Uniswap API or on-chain quoter
+  // Generate mock quote
   const quote = {
-    expectedOutput: (parseFloat(amount) * 1.5).toFixed(4), // Mock: 1.5x conversion
-    minReceived: (parseFloat(amount) * 1.49).toFixed(4), // With 0.5% slippage
+    expectedOutput: (parseFloat(amount) * 1.5).toFixed(4),
+    minReceived: (parseFloat(amount) * 1.49).toFixed(4),
     gasCost: '~0.01 ETH',
     priceImpact: '0.1%',
     platform: platform,
@@ -134,7 +172,49 @@ async function handleGetSwapQuote(data) {
     amount,
   };
 
+  // Get AI recommendations
+  try {
+    const recommendations = await generateSwapRecommendations(fromToken, toToken, amount, quote);
+    Object.assign(quote, recommendations);
+  } catch (error) {
+    console.error('[Background] Error generating recommendations:', error);
+    // Continue with quote even if recommendations fail
+  }
+
   return { quote };
+}
+
+/**
+ * Generate AI recommendations for a swap
+ */
+async function generateSwapRecommendations(fromToken, toToken, amount, quote) {
+  const systemPrompt = `You are a DeFi trade advisor. Analyze a swap and provide brief recommendations in JSON format:
+{
+  "gasOptimization": "<brief tip or null>",
+  "riskWarning": "<warning or null>",
+  "liquidityAnalysis": "<analysis or null>",
+  "timingAdvice": "<timing tip or null>"
+}
+
+All fields should be null or strings of max 100 characters.`;
+
+  const userMessage = `Analyze this swap:
+From: ${fromToken}
+To: ${toToken}
+Amount: ${amount}
+Expected Output: ${quote.expectedOutput}
+Gas Cost: ${quote.gasCost}
+Price Impact: ${quote.priceImpact}
+
+Provide recommendations.`;
+
+  try {
+    const recommendations = await claudeClient._chat(userMessage, systemPrompt);
+    return recommendations;
+  } catch (error) {
+    console.error('[Background] Error in recommendations:', error);
+    return {};
+  }
 }
 
 /**

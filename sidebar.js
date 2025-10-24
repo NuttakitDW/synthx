@@ -23,6 +23,9 @@ const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
 
 // Trade/Swap elements
+const commandInput = document.getElementById('commandInput');
+const parseCommandBtn = document.getElementById('parseCommandBtn');
+const formSection = document.getElementById('formSection');
 const fromTokenInput = document.getElementById('fromTokenInput');
 const amountInput = document.getElementById('amountInput');
 const toTokenInput = document.getElementById('toTokenInput');
@@ -33,9 +36,11 @@ const swapPreview = document.getElementById('swapPreview');
 const swapLoading = document.getElementById('swapLoading');
 const swapError = document.getElementById('swapError');
 const swapStatus = document.getElementById('swapStatus');
+const aiRecommendations = document.getElementById('aiRecommendations');
 
-// Store swap quote data
+// Store swap quote data and history
 let currentQuote = null;
+let tradeHistory = [];
 
 /**
  * Initialize UI on load
@@ -56,8 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
   analyzeAddressBtn.addEventListener('click', handleAnalyzeAddress);
 
   // Trade events
+  parseCommandBtn.addEventListener('click', handleParseCommand);
   getQuoteBtn.addEventListener('click', handleGetQuote);
   executeSwapBtn.addEventListener('click', handleExecuteSwap);
+
+  // Load trade history
+  loadTradeHistory();
 
   settingsBtn.addEventListener('click', openSettings);
   closeSettingsBtn.addEventListener('click', closeSettings);
@@ -287,6 +296,137 @@ function setupTabs() {
 }
 
 /**
+ * AI Command Parser - Parse natural language commands
+ */
+async function handleParseCommand() {
+  const command = commandInput.value.trim();
+
+  if (!command) {
+    showSwapError('Please enter a command like "Swap 0.01 ETH for USDC"');
+    return;
+  }
+
+  swapLoading.style.display = 'block';
+  document.getElementById('loadingMessage').textContent = 'Parsing command with AI...';
+  parseCommandBtn.disabled = true;
+
+  try {
+    console.log('[UI] Parsing command:', command);
+
+    // Send to background for Claude parsing
+    const response = await chrome.runtime.sendMessage({
+      action: 'parseTradeCommand',
+      data: { command },
+    });
+
+    if (response.success) {
+      const parsed = response.data.parsed;
+
+      // Fill in the form
+      fromTokenInput.value = parsed.fromToken || '';
+      amountInput.value = parsed.amount || '';
+      toTokenInput.value = parsed.toToken || '';
+
+      // Show the form section
+      formSection.style.display = 'block';
+
+      // Clear input
+      commandInput.value = '';
+
+      // Show success message
+      showSwapSuccess({
+        message: `✅ Parsed! "${parsed.fromToken}" → "${parsed.toToken}" (${parsed.amount})`
+      });
+
+      console.log('[UI] Parsed command:', parsed);
+    } else {
+      showSwapError(response.error || 'Failed to parse command');
+    }
+  } catch (error) {
+    console.error('[UI] Error parsing command:', error);
+    showSwapError('Error: ' + error.message);
+  } finally {
+    swapLoading.style.display = 'none';
+    parseCommandBtn.disabled = false;
+  }
+}
+
+/**
+ * Display AI Recommendations
+ */
+function displayAIRecommendations(quote) {
+  aiRecommendations.style.display = 'block';
+
+  // Gas Optimization
+  const gasOpt = document.getElementById('gasOptimization');
+  if (quote.gasOptimization) {
+    gasOpt.style.display = 'block';
+    document.getElementById('gasOptText').textContent = quote.gasOptimization;
+  }
+
+  // Risk Warning
+  const riskWarn = document.getElementById('riskWarning');
+  if (quote.riskWarning) {
+    riskWarn.style.display = 'block';
+    document.getElementById('riskWarnText').textContent = quote.riskWarning;
+  }
+
+  // Liquidity Info
+  const liquidity = document.getElementById('liquidityInfo');
+  if (quote.liquidityAnalysis) {
+    liquidity.style.display = 'block';
+    document.getElementById('liquidityText').textContent = quote.liquidityAnalysis;
+  }
+
+  // Timing Advice
+  const timing = document.getElementById('timingAdvice');
+  if (quote.timingAdvice) {
+    timing.style.display = 'block';
+    document.getElementById('timingText').textContent = quote.timingAdvice;
+  }
+}
+
+/**
+ * Load trade history from storage
+ */
+async function loadTradeHistory() {
+  try {
+    const data = await chrome.storage.local.get('TRADE_HISTORY');
+    if (data.TRADE_HISTORY) {
+      tradeHistory = JSON.parse(data.TRADE_HISTORY);
+      console.log('[UI] Loaded trade history:', tradeHistory.length, 'trades');
+    }
+  } catch (error) {
+    console.error('[UI] Error loading trade history:', error);
+  }
+}
+
+/**
+ * Save trade to history
+ */
+async function saveTradeToHistory(trade) {
+  try {
+    tradeHistory.push({
+      ...trade,
+      timestamp: new Date().toISOString(),
+    });
+
+    // Keep only last 50 trades
+    if (tradeHistory.length > 50) {
+      tradeHistory = tradeHistory.slice(-50);
+    }
+
+    await chrome.storage.local.set({
+      TRADE_HISTORY: JSON.stringify(tradeHistory),
+    });
+
+    console.log('[UI] Saved trade to history');
+  } catch (error) {
+    console.error('[UI] Error saving trade history:', error);
+  }
+}
+
+/**
  * Trade/Swap Feature Handlers
  */
 async function handleGetQuote() {
@@ -349,6 +489,11 @@ function displaySwapPreview(quote) {
   document.getElementById('minReceived').textContent = quote.minReceived || '-';
   document.getElementById('gasCost').textContent = quote.gasCost || '~0.01 ETH';
   document.getElementById('priceImpact').textContent = quote.priceImpact || '0.1%';
+
+  // Display AI recommendations if available
+  if (quote.gasOptimization || quote.riskWarning || quote.liquidityAnalysis || quote.timingAdvice) {
+    displayAIRecommendations(quote);
+  }
 
   swapPreview.style.display = 'block';
   executeSwapBtn.style.display = 'block';
