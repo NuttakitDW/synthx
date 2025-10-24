@@ -120,6 +120,25 @@ async function executeSwap(payload) {
   const walletAddress = await checkWallet();
   console.log('[Injected] Wallet address:', walletAddress);
 
+  // Check if approval is needed
+  console.log('[Injected] Checking token approval...');
+  const approvalStatus = await window.UniswapHelper.requestTokenApprovalIfNeeded(
+    walletAddress,
+    fromToken,
+    amount
+  );
+  console.log('[Injected] Approval status:', approvalStatus);
+
+  // If approval is needed, request it
+  if (approvalStatus.requiresApproval) {
+    console.log('[Injected] Requesting token approval from MetaMask...');
+    const approvalTxHash = await sendSwapTransaction(walletAddress, approvalStatus.approvalTx);
+    console.log('[Injected] Approval transaction hash:', approvalTxHash);
+
+    // Wait a bit for approval to be mined
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+
   // Get real quote from Uniswap
   console.log('[Injected] Getting real quote from Uniswap V3...');
   const quote = await window.UniswapHelper.getUniswapQuote(fromToken, toToken, amount);
@@ -137,6 +156,7 @@ async function executeSwap(payload) {
     txHash,
     walletAddress,
     quote,
+    approvalNeeded: approvalStatus.requiresApproval,
   };
 }
 

@@ -588,7 +588,13 @@ async function handleExecuteSwap() {
 function showSwapSuccess(txData) {
   swapStatus.style.display = 'block';
   const statusMessage = document.getElementById('statusMessage');
-  statusMessage.textContent = '✅ Swap submitted! Transaction: ' + (txData.txHash || 'Processing...');
+
+  let message = '✅ Swap submitted! Transaction: ' + (txData.txHash || 'Processing...');
+  if (txData.approvalNeeded) {
+    message += '\n(Token approval was required and processed)';
+  }
+
+  statusMessage.textContent = message;
 
   if (txData.txHash) {
     const txLink = document.getElementById('txLink');

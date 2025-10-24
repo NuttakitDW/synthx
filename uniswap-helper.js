@@ -45,6 +45,51 @@ const SEPOLIA_CONFIG = {
   usdc: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
 };
 
+// ERC20 Transfer ABI
+const ERC20_TRANSFER_ABI = [
+  {
+    constant: false,
+    inputs: [
+      { name: '_to', type: 'address' },
+      { name: '_value', type: 'uint256' },
+    ],
+    name: 'transfer',
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+];
+
+// ERC20 Approve ABI
+const ERC20_APPROVE_ABI = [
+  {
+    constant: false,
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+];
+
+// ERC20 Allowance ABI
+const ERC20_ALLOWANCE_ABI = [
+  {
+    constant: true,
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' },
+    ],
+    name: 'allowance',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+];
+
 // Token database (can expand)
 const TOKEN_DB = {
   'ETH': { address: SEPOLIA_CONFIG.weth, decimals: 18, symbol: 'WETH' },
@@ -146,6 +191,73 @@ async function estimateGasCost(estimatedGasUnits = '200000') {
 }
 
 /**
+ * Check and request ERC20 approval if needed
+ * @param {string} walletAddress - User's wallet address
+ * @param {string} tokenSymbol - Token being spent (e.g., 'USDC')
+ * @param {string} amount - Amount in human-readable format
+ * @returns {Promise<Object>} Approval status and tx hash if needed
+ */
+async function requestTokenApprovalIfNeeded(walletAddress, tokenSymbol, amount) {
+  try {
+    const tokenSymbolUpper = tokenSymbol.toUpperCase();
+
+    // ETH doesn't need approval
+    if (tokenSymbolUpper === 'ETH' || tokenSymbolUpper === 'WETH') {
+      return { approved: true, message: 'ETH does not require approval' };
+    }
+
+    const tokenInfo = TOKEN_DB[tokenSymbolUpper];
+    if (!tokenInfo) {
+      throw new Error(`Token ${tokenSymbol} not found`);
+    }
+
+    const provider = new ethers.providers.JsonRpcProvider(SEPOLIA_CONFIG.rpcUrl);
+    const tokenContract = new ethers.Contract(
+      tokenInfo.address,
+      ERC20_ALLOWANCE_ABI,
+      provider
+    );
+
+    // Check current allowance
+    const amountInWei = ethers.utils.parseUnits(amount, tokenInfo.decimals);
+    const currentAllowance = await tokenContract.allowance(walletAddress, SEPOLIA_CONFIG.router);
+
+    console.log('[UniswapHelper] Current allowance:', currentAllowance.toString());
+    console.log('[UniswapHelper] Amount needed:', amountInWei.toString());
+
+    // If allowance is sufficient, no approval needed
+    if (currentAllowance.gte(amountInWei)) {
+      return {
+        approved: true,
+        message: `Already approved for ${amount} ${tokenSymbol}`,
+      };
+    }
+
+    // Need approval - return approval transaction data
+    const approvalABI = new ethers.utils.Interface(ERC20_APPROVE_ABI);
+    const approvalData = approvalABI.encodeFunctionData('approve', [
+      SEPOLIA_CONFIG.router,
+      ethers.constants.MaxUint256, // Approve max amount for convenience
+    ]);
+
+    return {
+      approved: false,
+      requiresApproval: true,
+      approvalTx: {
+        to: tokenInfo.address,
+        from: walletAddress,
+        data: approvalData,
+        gasLimit: ethers.BigNumber.from('100000'),
+      },
+      message: `Approval required for ${tokenSymbol}. Will request in MetaMask.`,
+    };
+  } catch (error) {
+    console.error('[UniswapHelper] Approval check error:', error);
+    throw new Error(`Failed to check approval: ${error.message}`);
+  }
+}
+
+/**
  * Build swap transaction (without sending)
  * @param {string} walletAddress - User's wallet address
  * @param {Object} swapData - Swap details from quote
@@ -201,6 +313,7 @@ if (typeof window !== 'undefined') {
   window.UniswapHelper = {
     getUniswapQuote,
     estimateGasCost,
+    requestTokenApprovalIfNeeded,
     buildSwapTransaction,
   };
 }
