@@ -1,0 +1,20 @@
+{
+  "name": "synthx",
+  "version": "0.1.0",
+  "description": "AI-powered research synthesis extension",
+  "main": "index.js",
+  "scripts": {
+    "start": "bash scripts/run_chromium.sh",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ai",
+    "research",
+    "synthesis",
+    "extension",
+    "chrome"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {}
+}
