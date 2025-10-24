@@ -193,12 +193,15 @@ class SimplifiedClaudeClient {
     }
 
     try {
+      console.log('[Claude] Sending message to Claude API...');
+
       const response = await fetch(`${this.apiBase}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-api-key': this.apiKey,
           'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
         },
         body: JSON.stringify({
           model: 'claude-3-5-sonnet-20241022',
@@ -210,11 +213,15 @@ class SimplifiedClaudeClient {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || `API error ${response.status}`);
+        const errorMessage = error.error?.message || `API error ${response.status}`;
+        console.error(`[Claude] Error: ${errorMessage}`);
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
       const responseText = data.content[0].text;
+
+      console.log('[Claude] Received response, parsing JSON...');
 
       // Extract JSON from response
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
