@@ -185,12 +185,34 @@ async function fetchAddressData(address, blockscoutUrl) {
     : `https://${chain}.blockscout.com/api/v2`;
 
   try {
+    // Fetch basic address info
     const response = await fetch(`${apiBase}/addresses/${address}`);
     if (!response.ok) throw new Error(`Blockscout API error: ${response.status}`);
 
     const addressData = await response.json();
 
     console.log('[Background] Fetched address data:', addressData);
+
+    // Also fetch recent token transfers to detect patterns
+    let tokenTransfers = [];
+    try {
+      const transfersResponse = await fetch(`${apiBase}/addresses/${address}/token-transfers?limit=50`);
+      if (transfersResponse.ok) {
+        const transfersData = await transfersResponse.json();
+        if (transfersData.items) {
+          // Only keep last 20 transfers for analysis
+          tokenTransfers = transfersData.items.slice(0, 20).map(t => ({
+            from: t.from?.hash,
+            to: t.to?.hash,
+            value: t.total?.value,
+            token: t.token?.name || t.token?.symbol,
+            timestamp: t.timestamp,
+          }));
+        }
+      }
+    } catch (e) {
+      console.log('[Background] Could not fetch token transfers:', e);
+    }
 
     return {
       address,
@@ -201,6 +223,7 @@ async function fetchAddressData(address, blockscoutUrl) {
       token_info: addressData.token,
       ens_name: addressData.ens_domain_name,
       implementation: addressData.implementation_address,
+      recent_transfers: tokenTransfers,
     };
   } catch (error) {
     console.error('[Background] Error fetching address:', error);
@@ -286,22 +309,28 @@ Respond with ONLY valid JSON (no markdown, no code blocks):
   "details": "<useful information>"
 }
 
-CRITICAL PATTERN DETECTION:
-- COMPROMISED WALLET: If funds are transferred IN immediately followed by transfer OUT
-  This pattern suggests the private key was leaked/compromised
-  Example: Receive ETH/tokens → immediately send to different address
-  Label this as: "⚠️ Possible compromised wallet - immediate fund sweeping detected"
-- BOT ACTIVITY: If patterns show repeated buying/selling in quick succession
-  Label as: "⚠️ Possible bot-controlled account"
-- DRAIN WALLET: If all transfers are outbound and origin unknown
+CRITICAL PATTERN DETECTION (look at recent_transfers array):
+- COMPROMISED WALLET (HIGHEST PRIORITY):
+  If you see the pattern where address receives tokens/funds, then immediately sends them out
+  Look for: token_in from other address → token_out to different address (within minutes)
+  Example: Receive 10 USDC at 10:00 → Send 10 USDC at 10:01 to different wallet
+  Label as: "⚠️ POSSIBLE COMPROMISED WALLET - Immediate fund sweeping detected (private key leaked)"
+  This is a CRITICAL red flag for hacked/compromised accounts
+
+- BOT ACTIVITY: If you see rapid fire transactions (multiple in/out within seconds)
+  Pattern: alternating buys/sells in quick succession
+  Label as: "⚠️ Possible bot-controlled account - rapid trading detected"
+
+- DRAIN WALLET: If all transfers are OUTBOUND and no incoming funds
+  Pattern: only sends, never receives
   Label as: "⚠️ Possible drain/theft activity"
 
 IMPORTANT GUIDELINES:
 - Do NOT flag verified contracts as risks
 - Do NOT flag normal trading activity as risks
-- Only flag ACTUAL suspicious patterns like above
-- Leave risks EMPTY [] for normal wallets
-- Focus on: actual exploitation/compromise patterns`;
+- DO flag fund sweeping patterns (immediate in→out) - this is a security issue
+- Leave risks EMPTY [] for normal wallets with normal activity
+- Focus on: actual exploitation/compromise patterns (especially fund sweeping)`;
 
       userMessage = `Analyze this address:\n${JSON.stringify(pageInfo, null, 2)}`;
     } else if (type === 'token') {
