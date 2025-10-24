@@ -196,54 +196,6 @@ function injectOverlay(pageData) {
     "></div>
   `;
 
-  // Button bar (scan + minimal spacing)
-  const buttonBar = document.createElement('div');
-  buttonBar.style.cssText = `
-    padding: 12px 16px;
-    background: white;
-    border-top: 1px solid #e0f7ff;
-    display: flex;
-    gap: 8px;
-  `;
-  buttonBar.innerHTML = `
-    <button id="synthx-scan-btn" style="
-      flex: 1;
-      padding: 10px;
-      background: linear-gradient(135deg, #00d9ff 0%, #0099cc 100%);
-      color: white;
-      border: none;
-      border-radius: 6px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    ">🔄 Scan</button>
-  `;
-
-  // Q&A section
-  const qa = document.createElement('div');
-  qa.style.cssText = `
-    padding: 12px 16px;
-    background: white;
-    border-top: 1px solid #e0f7ff;
-  `;
-  qa.innerHTML = `
-    <input
-      type="text"
-      id="synthx-question"
-      placeholder="Ask a follow-up question..."
-      style="
-        width: 100%;
-        padding: 10px 12px;
-        border: 1px solid #b3e5fc;
-        border-radius: 6px;
-        font-size: 12px;
-        box-sizing: border-box;
-        background: #f0f9ff;
-        transition: all 0.2s;
-      "
-    />
-  `;
 
   // Add animation styles
   const style = document.createElement('style');
@@ -273,8 +225,6 @@ function injectOverlay(pageData) {
   // Assemble overlay
   overlay.appendChild(header);
   overlay.appendChild(content);
-  overlay.appendChild(buttonBar);
-  overlay.appendChild(qa);
   document.body.appendChild(overlay);
 
   // Event handlers
@@ -319,19 +269,6 @@ function injectOverlay(pageData) {
     overlay.style.width = '420px';
     overlay.style.opacity = '1';
     restoreBtn.style.display = 'none';
-  });
-
-  document.getElementById('synthx-scan-btn').addEventListener('click', () => {
-    console.log('[SynthX] Scan button clicked - re-analyzing');
-    analyzePageData();
-  });
-
-  const questionInput = document.getElementById('synthx-question');
-  questionInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter' && questionInput.value.trim()) {
-      handleFollowUp(questionInput.value);
-      questionInput.value = '';
-    }
   });
 
   // Initial analysis
@@ -437,46 +374,6 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
-}
-
-/**
- * Handle follow-up questions
- */
-function handleFollowUp(question) {
-  const resultEl = document.getElementById('synthx-result');
-  if (!resultEl) return;
-
-  // Show loading
-  resultEl.innerHTML = `
-    <div style="text-align: center; padding: 30px 20px;">
-      <div style="
-        display: inline-block;
-        width: 30px;
-        height: 30px;
-        border: 2px solid #e0f7ff;
-        border-top: 2px solid #00d9ff;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-      "></div>
-      <p style="margin-top: 12px; color: #0099cc; font-size: 12px;">Thinking...</p>
-    </div>
-  `;
-
-  // Request follow-up
-  chrome.runtime.sendMessage(
-    {
-      action: 'askFollowUp',
-      pageData: currentPageData,
-      question
-    },
-    (response) => {
-      if (response.error) {
-        resultEl.innerHTML = `<div style="color: #d32f2f; padding: 12px; background: #fee; border-radius: 4px; font-size: 13px;">${escapeHtml(response.error)}</div>`;
-      } else {
-        resultEl.innerHTML = formatAnalysis(response.analysis);
-      }
-    }
-  );
 }
 
 /**
