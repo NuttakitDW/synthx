@@ -389,40 +389,40 @@ function handleAnalysisResponse(response) {
  */
 function formatAnalysis(analysis) {
   const html = `
-    <div style="color: #1f2937; font-size: 13px; line-height: 1.6;">
+    <div style="color: #000000; font-size: 13px; line-height: 1.6;">
       ${analysis.summary ? `
-        <div style="margin-bottom: 16px; padding: 12px; background: linear-gradient(135deg, #e0f7ff 0%, #b3e5fc 100%); border-left: 4px solid #00d9ff; border-radius: 4px; color: #006680;">
-          <strong>Summary:</strong><br/>
-          ${escapeHtml(analysis.summary)}
+        <div style="margin-bottom: 16px; padding: 12px; background: #e0f7ff; border-left: 4px solid #00d9ff; border-radius: 4px;">
+          <strong style="color: #000000; display: block; margin-bottom: 6px;">📝 Summary</strong>
+          <p style="margin: 0; color: #000000;">${escapeHtml(analysis.summary)}</p>
         </div>
       ` : ''}
 
       ${analysis.key_actions && analysis.key_actions.length > 0 ? `
         <div style="margin-bottom: 16px;">
-          <h3 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #0099cc;">📋 Key Actions</h3>
-          <ul style="margin: 0; padding-left: 20px; color: #374151;">
-            ${analysis.key_actions.map(action => `<li style="margin: 6px 0; font-size: 13px;">${escapeHtml(action)}</li>`).join('')}
+          <h3 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #000000;">📋 Key Actions</h3>
+          <ul style="margin: 0; padding-left: 20px; color: #000000;">
+            ${analysis.key_actions.map(action => `<li style="margin: 6px 0; font-size: 13px; color: #000000;">${escapeHtml(action)}</li>`).join('')}
           </ul>
         </div>
       ` : ''}
 
       ${analysis.risks && analysis.risks.length > 0 ? `
-        <div style="margin-bottom: 16px; padding: 12px; background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%); border-left: 4px solid #ef4444; border-radius: 4px;">
+        <div style="margin-bottom: 16px; padding: 12px; background: #fef2f2; border-left: 4px solid #ef4444; border-radius: 4px;">
           <h3 style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; color: #991b1b; text-transform: uppercase; letter-spacing: 0.5px;">⚠️ Security Alerts</h3>
-          <ul style="margin: 0; padding-left: 20px; color: #7c2d12;">
-            ${analysis.risks.map(risk => `<li style="margin: 6px 0; font-size: 13px;">${escapeHtml(risk)}</li>`).join('')}
+          <ul style="margin: 0; padding-left: 20px; color: #000000;">
+            ${analysis.risks.map(risk => `<li style="margin: 6px 0; font-size: 13px; color: #000000;">${escapeHtml(risk)}</li>`).join('')}
           </ul>
         </div>
       ` : `
-        <div style="margin-bottom: 16px; padding: 12px; background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border-left: 4px solid #10b981; border-radius: 4px; color: #166534;">
+        <div style="margin-bottom: 16px; padding: 12px; background: #f0fdf4; border-left: 4px solid #10b981; border-radius: 4px; color: #000000;">
           <strong>✅ No security concerns detected</strong>
         </div>
       `}
 
       ${analysis.details ? `
-        <div style="padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 12px; color: #666; line-height: 1.7;">
-          <strong style="color: #1f2937;">📊 Details:</strong><br/><br/>
-          ${escapeHtml(analysis.details)}
+        <div style="padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 4px; font-size: 12px; color: #000000; line-height: 1.7;">
+          <strong style="color: #000000; display: block; margin-bottom: 8px;">📊 Details</strong>
+          <p style="margin: 0; color: #000000;">${escapeHtml(analysis.details)}</p>
         </div>
       ` : ''}
     </div>

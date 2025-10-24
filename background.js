@@ -1,9 +1,10 @@
 /**
- * SynthX Background Service Worker
+ * SynthX Background Service Worker - Enhanced
  *
  * - Orchestrates Claude API for on-chain explanation
- * - Fetches data from Blockscout API
- * - Generates human-readable summaries of transactions, addresses, and tokens
+ * - Fetches comprehensive data from Blockscout API
+ * - Generates human-readable summaries
+ * - Properly handles verified status and detailed analysis
  */
 
 let claudeClient;
@@ -137,7 +138,6 @@ async function handleFollowUp(pageData, question) {
  * Fetch transaction data from Blockscout
  */
 async function fetchTransactionData(txHash, blockscoutUrl) {
-  // Extract chain from URL (eth.blockscout.com, sepolia.blockscout.com, etc)
   const chainMatch = blockscoutUrl.match(/https:\/\/([^.]+)\.blockscout\.com/);
   const chain = chainMatch ? chainMatch[1] : 'eth';
 
@@ -156,7 +156,9 @@ async function fetchTransactionData(txHash, blockscoutUrl) {
     return {
       hash: txHash,
       from: txData.from?.hash,
+      from_verified: txData.from?.is_contract && txData.from?.verified_info?.is_verified,
       to: txData.to?.hash,
+      to_verified: txData.to?.is_contract && txData.to?.verified_info?.is_verified,
       value: txData.value,
       gasUsed: txData.gas_used,
       gasPrice: txData.gas_price,
@@ -174,7 +176,7 @@ async function fetchTransactionData(txHash, blockscoutUrl) {
 }
 
 /**
- * Fetch address data from Blockscout
+ * Fetch address data from Blockscout with comprehensive details
  */
 async function fetchAddressData(address, blockscoutUrl) {
   const chainMatch = blockscoutUrl.match(/https:\/\/([^.]+)\.blockscout\.com/);
@@ -200,12 +202,12 @@ async function fetchAddressData(address, blockscoutUrl) {
       if (transfersResponse.ok) {
         const transfersData = await transfersResponse.json();
         if (transfersData.items) {
-          // Only keep last 20 transfers for analysis
           tokenTransfers = transfersData.items.slice(0, 20).map(t => ({
             from: t.from?.hash,
             to: t.to?.hash,
             value: t.total?.value,
             token: t.token?.name || t.token?.symbol,
+            is_verified: t.token?.is_verified_token,
             timestamp: t.timestamp,
           }));
         }
@@ -217,9 +219,10 @@ async function fetchAddressData(address, blockscoutUrl) {
     return {
       address,
       type: addressData.is_contract ? 'contract' : 'wallet',
+      is_verified: addressData.verified_info?.is_verified || false,
+      verification_name: addressData.verified_info?.name,
       balance: addressData.coin_balance,
       tx_count: addressData.transactions_count,
-      verified: addressData.verified_info?.is_verified || false,
       token_info: addressData.token,
       ens_name: addressData.ens_domain_name,
       implementation: addressData.implementation_address,
@@ -258,8 +261,12 @@ async function fetchTokenData(tokenAddress, blockscoutUrl) {
       total_supply: tokenData.total_supply,
       holders: tokenData.holders,
       type: tokenData.type,
-      verified: tokenData.verified_info?.is_verified || false,
+      is_verified: tokenData.is_verified_token || false,
+      verification_name: tokenData.verified_info?.name,
       exchange_rate: tokenData.exchange_rate,
+      description: tokenData.description,
+      website: tokenData.website,
+      social: tokenData.social_media || [],
     };
   } catch (error) {
     console.error('[Background] Error fetching token:', error);
@@ -282,75 +289,85 @@ class ClaudeClient {
 
     if (type === 'transaction') {
       systemPrompt = `You are an expert blockchain analyst. Explain this transaction to a regular user.
-Respond with ONLY valid JSON (no markdown, no code blocks):
+Return ONLY valid JSON (no markdown):
 {
-  "summary": "<1-2 sentence explanation of what happened>",
+  "summary": "<Clear explanation of what happened>",
   "key_actions": ["<action1>", "<action2>"],
-  "risks": ["<risk1>"] or [] if no risks,
-  "details": "<additional context>"
+  "risks": ["<risk1>"] or [],
+  "details": "<Technical details>"
 }
 
-IMPORTANT GUIDELINES:
-- Only flag actual problems (unusual patterns, unverified + suspicious, etc)
-- Do NOT flag verified contracts as risks
-- Do NOT flag standard operations as risks
-- Do NOT list "temporary loss of functionality" for wrapped tokens
-- Focus on: actual exploits, honeypots, unverified suspicious behavior
-- Leave risks EMPTY [] if contract is verified or operation is normal`;
+VERIFICATION STATUS:
+- Check from_verified and to_verified fields - if true, contract is verified and safe
+- Only flag unverified contracts if there are suspicious patterns
+- Verified contracts are trustworthy
 
-      userMessage = `Analyze this transaction:\n${JSON.stringify(pageInfo, null, 2)}`;
+KEY INFO TO INCLUDE:
+- What tokens were transferred (if any)
+- Which protocols/contracts were used
+- Verification status of contracts
+- Gas efficiency
+- Any unusual patterns`;
+
+      userMessage = `Analyze transaction:\n${JSON.stringify(pageInfo, null, 2)}`;
     } else if (type === 'address') {
-      systemPrompt = `You are an expert blockchain analyst. Summarize this address for a regular user.
-Respond with ONLY valid JSON (no markdown, no code blocks):
+      systemPrompt = `You are an expert blockchain analyst. Analyze this blockchain address.
+Return ONLY valid JSON (no markdown):
 {
-  "summary": "<1-2 sentence description of what this address is>",
+  "summary": "<What is this address>",
   "key_actions": ["<pattern1>", "<pattern2>"],
-  "risks": ["<risk1>"] or [] if no risks,
-  "details": "<useful information>"
+  "risks": ["<risk1>"] or [],
+  "details": "<Full analysis>"
 }
 
-CRITICAL PATTERN DETECTION (look at recent_transfers array):
-- COMPROMISED WALLET (HIGHEST PRIORITY):
-  If you see the pattern where address receives tokens/funds, then immediately sends them out
-  Look for: token_in from other address → token_out to different address (within minutes)
-  Example: Receive 10 USDC at 10:00 → Send 10 USDC at 10:01 to different wallet
-  Label as: "⚠️ POSSIBLE COMPROMISED WALLET - Immediate fund sweeping detected (private key leaked)"
-  This is a CRITICAL red flag for hacked/compromised accounts
+VERIFICATION:
+- is_verified field shows if contract is verified - verified=safe
+- If verified, show verification name (project name)
+- Only flag unverified contracts if suspicious activity exists
 
-- BOT ACTIVITY: If you see rapid fire transactions (multiple in/out within seconds)
-  Pattern: alternating buys/sells in quick succession
-  Label as: "⚠️ Possible bot-controlled account - rapid trading detected"
+PATTERN ANALYSIS (from recent_transfers):
+- Fund sweeping: Receive → immediately send to different address = COMPROMISED
+- All outbound only = Possible drain
+- Rapid alternating in/out = Bot activity
 
-- DRAIN WALLET: If all transfers are OUTBOUND and no incoming funds
-  Pattern: only sends, never receives
-  Label as: "⚠️ Possible drain/theft activity"
+INCLUDE:
+- Address type (wallet/contract)
+- Balance and activity level
+- Verification status with name
+- Recent transfer patterns
+- Any security concerns`;
 
-IMPORTANT GUIDELINES:
-- Do NOT flag verified contracts as risks
-- Do NOT flag normal trading activity as risks
-- DO flag fund sweeping patterns (immediate in→out) - this is a security issue
-- Leave risks EMPTY [] for normal wallets with normal activity
-- Focus on: actual exploitation/compromise patterns (especially fund sweeping)`;
-
-      userMessage = `Analyze this address:\n${JSON.stringify(pageInfo, null, 2)}`;
+      userMessage = `Analyze address:\n${JSON.stringify(pageInfo, null, 2)}`;
     } else if (type === 'token') {
-      systemPrompt = `You are an expert DeFi analyst. Summarize this token for a regular user.
-Respond with ONLY valid JSON (no markdown, no code blocks):
+      systemPrompt = `You are an expert DeFi analyst. Analyze this token.
+Return ONLY valid JSON (no markdown):
 {
-  "summary": "<1-2 sentence description of the token>",
+  "summary": "<What is this token>",
   "key_actions": ["<feature1>", "<feature2>"],
-  "risks": ["<risk1>"] or [] if no risks,
-  "details": "<useful information>"
+  "risks": ["<risk1>"] or [],
+  "details": "<Full analysis>"
 }
 
-IMPORTANT GUIDELINES:
-- Do NOT flag verified tokens as risks
-- Major tokens (USDC, USDT, WETH, DAI, etc) are safe
-- Only flag actual issues: honeypots, unverified + suspicious, exploit patterns
-- Leave risks EMPTY [] for verified, well-known tokens
-- Focus on: actual scams/honeypots, not just being a new token`;
+VERIFICATION:
+- is_verified field: true = verified safe token
+- Verified tokens include USDC, WETH, DAI, USDT, etc
+- If is_verified=true, show verification_name (project)
+- Do NOT flag verified tokens as risky
 
-      userMessage = `Analyze this token:\n${JSON.stringify(pageInfo, null, 2)}`;
+TOKEN DETAILS TO INCLUDE:
+- Token name, symbol, type (ERC-20, etc)
+- Total supply and holder count
+- Verification status with official name
+- Website and social media if available
+- Exchange rate if available
+- Purpose/description
+
+ONLY FLAG RISKS FOR:
+- Unverified tokens with suspicious patterns
+- Honeypots or exploits
+- NOT just because unverified`;
+
+      userMessage = `Analyze token:\n${JSON.stringify(pageInfo, null, 2)}`;
     }
 
     try {
@@ -379,7 +396,6 @@ IMPORTANT GUIDELINES:
       const data = await response.json();
       const responseText = data.content[0].text;
 
-      // Extract JSON
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
@@ -394,13 +410,12 @@ IMPORTANT GUIDELINES:
 
   async answerQuestion(type, pageInfo, question) {
     const systemPrompt = `You are an expert blockchain analyst answering questions about on-chain data.
-Keep responses concise and clear for non-technical users.
-Respond with ONLY valid JSON (no markdown, no code blocks):
+Keep responses concise and clear. Return ONLY valid JSON (no markdown):
 {
-  "summary": "<direct answer to the question>",
+  "summary": "<Direct answer to question>",
   "key_actions": ["<relevant action1>"] or [],
-  "risks": ["<risk1>"] or [] if no risks,
-  "details": "<additional context or explanation>"
+  "risks": ["<risk1>"] or [],
+  "details": "<Additional context>"
 }`;
 
     const userMessage = `Context: ${type}\nData: ${JSON.stringify(pageInfo)}\n\nQuestion: ${question}`;
@@ -431,7 +446,6 @@ Respond with ONLY valid JSON (no markdown, no code blocks):
       const data = await response.json();
       const responseText = data.content[0].text;
 
-      // Extract JSON
       const jsonMatch = responseText.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         return JSON.parse(jsonMatch[0]);
