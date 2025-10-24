@@ -1,0 +1,24 @@
+# Environment
+.env
+.env.local
+node_modules/
+
+# Secrets
+config.js
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Build artifacts
+dist/
+*.zip
+build/
+
+# Testing
+*.test.js
+coverage/

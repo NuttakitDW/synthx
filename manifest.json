@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "SynthX - Web3 Intelligence",
+  "version": "0.1.0",
+  "description": "AI-powered blockchain intelligence and safety analysis for DeFi users",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://api.anthropic.com/*"
+  ],
+  "action": {
+    "default_popup": "sidebar.html",
+    "default_title": "SynthX - Web3 Intelligence"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["injected.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

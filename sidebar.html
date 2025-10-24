@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SynthX - Web3 Intelligence</title>
+    <link rel="stylesheet" href="sidebar.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <header class="header">
+        <h1 class="title">SynthX</h1>
+        <p class="subtitle">Web3 Intelligence</p>
+        <button class="settings-btn" id="settingsBtn" title="Settings">⚙️</button>
+      </header>
+
+      <!-- Status -->
+      <div class="status" id="statusBar">
+        <span class="status-dot" id="statusDot"></span>
+        <span class="status-text" id="statusText">Checking...</span>
+      </div>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Token Safety Tab -->
+        <section class="tab-content active" id="tokenTab">
+          <h2 class="tab-title">🔍 Token Safety Score</h2>
+
+          <div class="input-group">
+            <label for="tokenInput">Token Address</label>
+            <input
+              type="text"
+              id="tokenInput"
+              placeholder="0x... or token name"
+              class="input-field"
+            />
+            <button id="analyzeTokenBtn" class="btn btn-primary">Analyze</button>
+          </div>
+
+          <div class="result" id="tokenResult" style="display: none">
+            <div class="result-header">
+              <span class="verdict-emoji" id="verdictEmoji">❓</span>
+              <span class="verdict-text" id="verdictText">Analyzing...</span>
+              <span class="score" id="safetyScore">-</span>
+            </div>
+            <div class="result-body">
+              <div class="reason" id="tokenReason"></div>
+              <ul class="risks-list" id="risksList"></ul>
+              <small class="confidence" id="confidence"></small>
+            </div>
+          </div>
+
+          <div class="loading" id="tokenLoading" style="display: none">
+            <div class="spinner"></div>
+            <p>Analyzing token...</p>
+          </div>
+
+          <div class="error" id="tokenError" style="display: none"></div>
+        </section>
+
+        <!-- Wallet Analyzer Tab -->
+        <section class="tab-content" id="walletTab">
+          <h2 class="tab-title">💼 Wallet Analyzer</h2>
+
+          <div class="input-group">
+            <label for="walletInput">Wallet Address</label>
+            <input
+              type="text"
+              id="walletInput"
+              placeholder="0x... or connected wallet"
+              class="input-field"
+            />
+            <button id="analyzeWalletBtn" class="btn btn-primary">Analyze</button>
+          </div>
+
+          <div class="result" id="walletResult" style="display: none">
+            <div class="metric">
+              <label>Win Rate</label>
+              <span id="winRate">-</span>
+            </div>
+            <div class="metric">
+              <label>Total Trades</label>
+              <span id="totalTrades">-</span>
+            </div>
+            <div class="metric">
+              <label>Most Profitable Pair</label>
+              <span id="profitablePair">-</span>
+            </div>
+            <div class="metric">
+              <label>Biggest Loss</label>
+              <span id="biggestLoss">-</span>
+            </div>
+            <div class="recommendation" id="walletRecommendation"></div>
+          </div>
+
+          <div class="loading" id="walletLoading" style="display: none">
+            <div class="spinner"></div>
+            <p>Analyzing wallet...</p>
+          </div>
+
+          <div class="error" id="walletError" style="display: none"></div>
+        </section>
+
+        <!-- Settings Modal -->
+        <section class="modal" id="settingsModal" style="display: none">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2>Settings</h2>
+              <button class="close-btn" id="closeSettingsBtn">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="form-group">
+                <label for="apiKeyInput">Claude API Key</label>
+                <input
+                  type="password"
+                  id="apiKeyInput"
+                  placeholder="sk-ant-..."
+                  class="input-field"
+                />
+                <small>Your API key is stored locally and never shared</small>
+              </div>
+              <div class="form-group">
+                <label for="chainSelect">Blockchain</label>
+                <select id="chainSelect" class="input-field">
+                  <option value="1">Ethereum Mainnet</option>
+                  <option value="11155111">Sepolia Testnet</option>
+                </select>
+              </div>
+              <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Footer -->
+      <footer class="footer">
+        <p class="version">SynthX v0.1.0</p>
+        <a href="https://github.com/nuttakit/synthx" target="_blank">GitHub</a>
+      </footer>
+    </div>
+
+    <script src="sidebar.js"></script>
+  </body>
+</html>
